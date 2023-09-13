@@ -1,0 +1,30 @@
+name: Guidelines
+
+on:
+  pull_request:
+    types:
+      - opened
+jobs:
+  send-guidelines:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wow-actions/auto-comment@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          pullRequestOpened: |
+            👋 @{{ author }}
+            **Thanks for your contribution!**
+            The approval and merge process is almost fully automated 🧙
+            Here's how it works:
+            1. You open a new pull request
+            2. Automated tests check the code
+            3. Maintainers review the code
+            4. Once approved, the PR is ready to merge.
+
+            > 👉 **Omit the extended description**
+            > Please remove the commit body before merging the pull request.
+            > Instead, include the pull request number in the title to provide the full context
+            > about the change.
+
+            ☝️ Lastly, the title for the commit will come from the pull request title. So please provide a descriptive title that summarizes the changes in **50 characters or less using the imperative mood.**
+            Happy coding! 🎉

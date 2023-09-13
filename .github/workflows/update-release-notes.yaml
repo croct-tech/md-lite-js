@@ -1,0 +1,17 @@
+name: Release notes
+
+on:
+  push:
+    branches:
+      - master
+    tags-ignore:
+      - '**'
+
+jobs:
+  update-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update release draft
+        uses: release-drafter/release-drafter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

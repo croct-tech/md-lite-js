@@ -1,0 +1,5 @@
+# Default owners
+* @croct-tech/js
+
+# GitHub configurations
+/.github/ @croct-tech/infra
