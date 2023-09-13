@@ -20,6 +20,25 @@
     <a href="https://github.com/croct-tech/repository-template-typescript/issues/new?labels=enhancement&template=feature-request.md">✨ Request Feature</a>
 </p>
 
+
+## Introduction 🚀
+
+This library provides a minimalistic, lightning-fast Markdown parser with zero dependencies. Perfect for those who need to handle basic markdown syntax like **bold**, *italic*, and [links](#) without the bloat of more extensive libraries.
+
+
+#### Features:
+- 🚫 **Zero dependencies**: Designed with simplicity in mind.
+- ⚡ **Fast derformance**: Optimized for speed without compromising on functionality.
+- 📝 **Basic syntax support**: Handles **bold**, *italic*, and [links](#).
+
+
+#### Contribution:
+Feel free to contribute and enhance its capabilities while keeping the core principle of simplicity and speed intact.
+
+---
+
+Spread the word and star ⭐ if you find it useful!
+
 # Instructions
 Follow the steps below to create a new repository:
 
