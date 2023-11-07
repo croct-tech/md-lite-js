@@ -1,0 +1,39 @@
+type MarkdownNodeMap = {
+    bold: {
+        children: MarkdownNode,
+    },
+    italic: {
+        children: MarkdownNode,
+    },
+    strike: {
+        children: MarkdownNode,
+    },
+    code: {
+        content: string,
+    },
+    text: {
+        content: string,
+    },
+    link: {
+        href: string,
+        children: MarkdownNode,
+    },
+    image: {
+        src: string,
+        alt: string,
+    },
+    paragraph: {
+        children: MarkdownNode[],
+    },
+    fragment: {
+        children: MarkdownNode[],
+    },
+};
+
+export type MarkdownNodeType = keyof MarkdownNodeMap;
+
+export type MarkdownNode<T extends MarkdownNodeType = MarkdownNodeType> = {
+    [K in MarkdownNodeType]: MarkdownNodeMap[K] & {
+        type: K,
+    }
+}[T];
