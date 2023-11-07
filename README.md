@@ -13,7 +13,6 @@
     <a href="https://codeclimate.com/repos/654abd6e5167670cf20e64a0/maintainability"><img src="https://api.codeclimate.com/v1/badges/d8dfc7cb03405d137fbd/maintainability" /></a>
     <a href="https://codeclimate.com/repos/654abd6e5167670cf20e64a0/test_coverage"><img src="https://api.codeclimate.com/v1/badges/d8dfc7cb03405d137fbd/test_coverage" /></a>
     <a href="https://bundlephobia.com/package/@croct/md-lite"><img alt="Gzipped bundle size" src="https://badgen.net/bundlephobia/minzip/@material-ui/core"></a>
-
     <br />
     <br />
     <a href="https://github.com/croct-tech/md-lite-js/releases">📦 Releases</a>
