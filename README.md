@@ -31,7 +31,7 @@ Perfect for those who need to handle basic Markdown syntax like **bold**, *itali
 
 - 🪶 **Lightweight:**  Zero dependencies and less than 2KB gzipped.
 - 🌐 **Cross-environment:**  Works in Node.js and browsers.
-- ✍️ **Minimalist:** Supports _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](https://croct.com), <img src="https://github.com/croct-tech/md-lite-js/assets/943036/6e6a2411-67d2-4f7b-89d8-bc08fd73c662" alt="image" width="16" height="16" /> images, and ¶ paragraphs.
+- ✍️ **Minimalist:** Only basic syntax, including _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](https://croct.com), <img src="https://github.com/croct-tech/md-lite-js/assets/943036/6e6a2411-67d2-4f7b-89d8-bc08fd73c662" alt="image" width="16" height="16" /> images, and ¶ paragraphs.
 - 🛠 **Flexible:** Render whatever you want, from HTML to JSX.
 
 ### Who is this library for?
@@ -39,6 +39,7 @@ Perfect for those who need to handle basic Markdown syntax like **bold**, *itali
 If you're working on a project that requires rendering Markdown for short texts like titles, subtitles, and descriptions, but you don't need a full-featured Markdown parser, this library is for you.
 
 ## Installation
+
 We recommend using [NPM](https://www.npmjs.com) to install the package:
 
 ```sh
