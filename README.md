@@ -8,9 +8,12 @@
     A minimalist Markdown parser and render for basic formatting.
 </p>
 <p align="center">
-    <img alt="Build" src="https://img.shields.io/badge/build-passing-green" />
-    <img alt="Coverage" src="https://img.shields.io/badge/coverage-100%25-green" />
-    <img alt="Maintainability" src="https://img.shields.io/badge/maintainability-100-green" />
+    <a href="https://www.npmjs.com/package/@croct/md-lite"><img alt="Version" src="https://img.shields.io/npm/v/@croct/md-lite"/></a>
+    <a href="https://github.com/croct-tech/md-lite-js/actions/workflows/validate-branch.yaml"><img alt="Build" src="https://github.com/croct-tech/md-lite-js/actions/workflows/validate-branch.yaml/badge.svg" /></a>
+    <a href="https://codeclimate.com/repos/654abd6e5167670cf20e64a0/maintainability"><img src="https://api.codeclimate.com/v1/badges/d8dfc7cb03405d137fbd/maintainability" /></a>
+    <a href="https://codeclimate.com/repos/654abd6e5167670cf20e64a0/test_coverage"><img src="https://api.codeclimate.com/v1/badges/d8dfc7cb03405d137fbd/test_coverage" /></a>
+    <a href="https://bundlephobia.com/package/@croct/md-lite"><img alt="Gzipped bundle size" src="https://badgen.net/bundlephobia/minzip/@material-ui/core"></a>
+
     <br />
     <br />
     <a href="https://github.com/croct-tech/md-lite-js/releases">📦 Releases</a>
