@@ -1,4 +1,7 @@
 type MarkdownNodeMap = {
+    text: {
+        content: string,
+    },
     bold: {
         children: MarkdownNode,
     },
@@ -9,9 +12,6 @@ type MarkdownNodeMap = {
         children: MarkdownNode,
     },
     code: {
-        content: string,
-    },
-    text: {
         content: string,
     },
     link: {

@@ -82,14 +82,14 @@ import {render} from '@croct/md-lite';
 const markdown = '**Hello**, [World](https://example.com)';
 
 const html = render(ast, {
-    fragment: node => node.children.join(''),
     text: node => node.content,
     bold: node => `<b>${node.children}</b>`,
     italic: node => `<i>${node.children}</i>`,
     strike: node => `<s>${node.children}</s>`,
     code: node => `<code>${node.content}</code>`,
-    image: node => `<img src="${node.src}" alt="${node.alt}">`,
     link: node => `<a href="${node.href}">${node.children}</a>`,
+    image: node => `<img src="${node.src}" alt="${node.alt}">`,
+    fragment: node => node.children.join(''),
     paragraph: node => `<p>${node.children.join('')}</p>`,
 });
 ```
@@ -102,15 +102,15 @@ import {render} from '@croct/md-lite';
 const markdown = '**Hello**, [World](https://example.com)';
 
 const jsx = render(ast, {
-    fragment: node => node.children,
     text: node => node.content,
     bold: node => <b>{node.children}</b>,
     italic: node => <i>{node.children}</i>,
     strike: node => <s>{node.children}</s>,
     code: node => <code>{node.content}</code>,
-    image: node => <img src={node.src} alt={node.alt} />,
     link: node => <a href={node.href}>{node.children}</a>,
+    image: node => <img src={node.src} alt={node.alt} />,
     paragraph: node => <p>{node.children}</p>,
+    fragment: node => node.children,
 });
 ```
 

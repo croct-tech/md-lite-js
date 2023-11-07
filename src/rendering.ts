@@ -2,6 +2,9 @@ import {MarkdownNode, MarkdownNodeType} from './ast';
 import {parse} from './parsing';
 
 type VisitedMarkdownNodeMap<C> = {
+    text: {
+        content: string,
+    },
     bold: {
         children: C,
     },
@@ -14,16 +17,13 @@ type VisitedMarkdownNodeMap<C> = {
     code: {
         content: string,
     },
-    text: {
-        content: string,
+    link: {
+        href: string,
+        children: C,
     },
     image: {
         src: string,
         alt: string,
-    },
-    link: {
-        href: string,
-        children: C,
     },
     paragraph: {
         children: C[],
@@ -38,13 +38,13 @@ export type VisitedMarkdownNode<C, T extends MarkdownNodeType> = {
 }[T];
 
 export interface MarkdownRenderer<T> {
+    text(node: VisitedMarkdownNode<T, 'text'>): T;
     bold(node: VisitedMarkdownNode<T, 'bold'>): T;
     italic(node: VisitedMarkdownNode<T, 'italic'>): T;
     strike(node: VisitedMarkdownNode<T, 'strike'>): T;
     code(node: VisitedMarkdownNode<T, 'code'>): T;
-    text(node: VisitedMarkdownNode<T, 'text'>): T;
-    image(node: VisitedMarkdownNode<T, 'image'>): T;
     link(node: VisitedMarkdownNode<T, 'link'>): T;
+    image(node: VisitedMarkdownNode<T, 'image'>): T;
     paragraph(node: VisitedMarkdownNode<T, 'paragraph'>): T;
     fragment(node: VisitedMarkdownNode<T, 'fragment'>): T;
 }
@@ -55,15 +55,8 @@ export function render<T>(markdown: string|MarkdownNode, visitor: MarkdownRender
 
 function visit<T>(node: MarkdownNode, visitor: MarkdownRenderer<T>): T {
     switch (node.type) {
-        case 'image':
-            return visitor.image(node);
-
-        case 'link':
-            return visitor.link({
-                type: node.type,
-                href: node.href,
-                children: visit(node.children, visitor),
-            });
+        case 'text':
+            return visitor.text(node);
 
         case 'bold':
             return visitor.bold({
@@ -86,8 +79,15 @@ function visit<T>(node: MarkdownNode, visitor: MarkdownRenderer<T>): T {
         case 'code':
             return visitor.code(node);
 
-        case 'text':
-            return visitor.text(node);
+        case 'image':
+            return visitor.image(node);
+
+        case 'link':
+            return visitor.link({
+                type: node.type,
+                href: node.href,
+                children: visit(node.children, visitor),
+            });
 
         case 'paragraph':
             return visitor.paragraph({
