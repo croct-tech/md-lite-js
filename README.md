@@ -31,7 +31,7 @@ Perfect for those who need to handle basic Markdown syntax like **bold**, *itali
 
 - 🪶 **Lightweight:**  Zero dependencies and less than 2KB gzipped.
 - 🌐 **Cross-environment:**  Works in Node.js and browsers.
-- ✍️ **Minimalist:** Supports _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](https://croct.com), <img src="https://github.com/croct-tech/md-lite-js/assets/943036/6e6a2411-67d2-4f7b-89d8-bc08fd73c662" alt="image" width="16" height="16" />, and ¶ paragraphs.
+- ✍️ **Minimalist:** Supports _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](https://croct.com), <img src="https://github.com/croct-tech/md-lite-js/assets/943036/6e6a2411-67d2-4f7b-89d8-bc08fd73c662" alt="image" width="16" height="16" /> images, and ¶ paragraphs.
 - 🛠 **Flexible:** Render whatever you want, from HTML to JSX.
 
 ### Who is this library for?
