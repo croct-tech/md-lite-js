@@ -29,7 +29,7 @@ Perfect for those who need to handle basic Markdown syntax like **bold**, *itali
 
 **Features**
 
-- 🪶 **Lightweight:**  Zero dependencies and less than 2KB gzipped.
+- 🪶 **Lightweight:**  Zero dependencies, about 1.5 KB gzipped.
 - 🌐 **Cross-environment:**  Works in Node.js and browsers.
 - ✍️ **Minimalist:** Supports only _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](https://croct.com), 🖼️ images, and ¶ paragraphs.
 - 🛠 **Flexible:** Render whatever you want, from HTML to JSX.
