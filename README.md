@@ -90,8 +90,8 @@ const html = render(markdown, {
     code: node => `<code>${node.content}</code>`,
     link: node => `<a href="${node.href}">${node.children}</a>`,
     image: node => `<img src="${node.src}" alt="${node.alt}">`,
-    fragment: node => node.children.join(''),
     paragraph: node => `<p>${node.children.join('')}</p>`,
+    fragment: node => node.children.join(''),
 });
 ```
 
@@ -112,7 +112,9 @@ const jsx = render(markdown, {
     link: node => <a href={node.href}>{node.children}</a>,
     image: node => <img src={node.src} alt={node.alt} />,
     paragraph: node => <p>{node.children}</p>,
-    fragment: node => node.children,
+    fragment: node => node.children.map(
+        (child, index) => <Fragment key={index}>{child}</Fragment>
+    ),
 });
 ```
 
