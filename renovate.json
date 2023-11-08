@@ -1,5 +1,5 @@
 {
   "extends": [
-    "github>croct-tech/renovate-presets:js"
+    "github>croct-tech/renovate-public-presets:js"
   ]
 }
