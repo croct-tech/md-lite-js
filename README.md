@@ -100,9 +100,10 @@ Here is an example of how to render the Markdown string above into JSX:
 ```tsx
 import {render} from '@croct/md-lite';
 
+// Passing a string as input is equivalent to calling `parse` first
 const markdown = '**Hello**, [World](https://example.com)';
 
-const jsx = render(ast, {
+const jsx = render(markdown, {
     text: node => node.content,
     bold: node => <b>{node.children}</b>,
     italic: node => <i>{node.children}</i>,
