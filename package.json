@@ -1,28 +1,28 @@
 {
-  "name": "@croct/ts-project",
+  "name": "@croct/md-lite",
   "version": "0.0.0-dev",
-  "description": "A brief description about the project.",
+  "description": "A minimalist Markdown parser and render for basic formatting.",
   "author": {
-    "name": "Croct",
-    "email": "lib+project-ts@croct.com",
-    "url": "https://github.com/croct-tech/project-ts"
+    "name": "croct",
+    "email": "lib+md-lite@croct.com",
+    "url": "https://github.com/croct-tech/md-lite-js"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "keywords": [
     "croct",
-    "personalization",
-    "typescript"
+    "typescript",
+    "markdown"
   ],
   "types": "index.d.ts",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/croct-tech/project-ts.git"
+    "url": "git+https://github.com/croct-tech/md-lite-js.git"
   },
   "bugs": {
-    "url": "https://github.com/croct-tech/project-ts/issues"
+    "url": "https://github.com/croct-tech/md-lite-js/issues"
   },
-  "homepage": "https://github.com/croct-tech/project-ts",
+  "homepage": "https://github.com/croct-tech/md-lite-js",
   "scripts": {
     "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
     "test": "jest -c jest.config.js --coverage",
@@ -36,8 +36,6 @@
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.22",
     "jest": "^29.0.0",
-    "jest-extended": "^4.0.0",
-    "ts-node": "^10.8.2",
     "typescript": "^5.0.0"
   },
   "files": [
