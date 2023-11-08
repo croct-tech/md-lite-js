@@ -25,13 +25,13 @@
 ## Introduction
 
 This library provides a fast and simple Markdown parser with zero dependencies.
-Perfect for those who need to handle basic Markdown syntax like **bold**, *italic*, and [links](#) without the overhead of a full-featured Markdown parser.
+Perfect for those who need to handle basic Markdown syntax without the overhead of a full-featured Markdown parser.
 
 **Features**
 
 - 🪶 **Lightweight:**  Zero dependencies, about 1.5 KB gzipped.
 - 🌐 **Cross-environment:**  Works in Node.js and browsers.
-- ✍️ **Minimalist:** Supports only _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](https://croct.com), 🖼️ images, and ¶ paragraphs.
+- ✍️ **Minimalist:** Supports only _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](#), 🖼️ images, and ¶ paragraphs.
 - 🛠 **Flexible:** Render whatever you want, from HTML to JSX.
 
 ### Who is this library for?
