@@ -24,9 +24,10 @@
   },
   "homepage": "https://github.com/croct-tech/md-lite-js",
   "scripts": {
-    "lint": "eslint 'src/**/*.ts'",
-    "validate": "tsd test",
-    "build": "tsc -p tsconfig.build.md-lite"
+    "lint": "eslint 'src/**/*.ts' 'test/**/*.ts'",
+    "test": "jest -c jest.config.js --coverage",
+    "validate": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
     "@croct/eslint-plugin": "^0.7.0",
