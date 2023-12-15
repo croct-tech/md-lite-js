@@ -40,95 +40,6 @@ describe('A Markdown render function', () => {
         }
     }
 
-    const tree: MarkdownNode = {
-        type: 'fragment',
-        children: [
-            {
-                type: 'paragraph',
-                children: [
-                    {
-                        type: 'bold',
-                        children: {
-                            type: 'text',
-                            content: 'Bold',
-                        },
-                    },
-                ],
-            },
-            {
-                type: 'paragraph',
-                children: [
-                    {
-                        type: 'italic',
-                        children: {
-                            type: 'text',
-                            content: 'Italic',
-                        },
-                    },
-                ],
-            },
-            {
-                type: 'paragraph',
-                children: [
-                    {
-                        type: 'bold',
-                        children: {
-                            type: 'italic',
-                            children: {
-                                type: 'text',
-                                content: 'Bold and italic',
-                            },
-                        },
-                    },
-                ],
-            },
-            {
-                type: 'paragraph',
-                children: [
-                    {
-                        type: 'strike',
-                        children: {
-                            type: 'text',
-                            content: 'Strike',
-                        },
-                    },
-                ],
-            },
-            {
-                type: 'paragraph',
-                children: [
-                    {
-                        type: 'code',
-                        content: 'Code',
-                    },
-                ],
-            },
-            {
-                type: 'paragraph',
-                children: [
-                    {
-                        type: 'image',
-                        src: 'https://example.com/image.png',
-                        alt: 'Image',
-                    },
-                ],
-            },
-            {
-                type: 'paragraph',
-                children: [
-                    {
-                        type: 'link',
-                        href: 'https://example.com',
-                        children: {
-                            type: 'text',
-                            content: 'Link',
-                        },
-                    },
-                ],
-            },
-        ],
-    };
-
     const markdown = [
         '**Bold**',
         '*Italic*',
@@ -138,6 +49,116 @@ describe('A Markdown render function', () => {
         '![Image](https://example.com/image.png)',
         '[Link](https://example.com)',
     ].join('\n\n');
+
+    const tree: MarkdownNode = {
+        type: 'fragment',
+        source: markdown,
+        children: [
+            {
+                type: 'paragraph',
+                source: '**Bold**',
+                children: [
+                    {
+                        type: 'bold',
+                        source: '**Bold**',
+                        children: {
+                            type: 'text',
+                            source: 'Bold',
+                            content: 'Bold',
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'paragraph',
+                source: '*Italic*',
+                children: [
+                    {
+                        type: 'italic',
+                        source: '*Italic*',
+                        children: {
+                            source: 'Italic',
+                            type: 'text',
+                            content: 'Italic',
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'paragraph',
+                source: '***Bold and italic***',
+                children: [
+                    {
+                        type: 'bold',
+                        source: '***Bold and italic***',
+                        children: {
+                            type: 'italic',
+                            source: '*Bold and italic*',
+                            children: {
+                                type: 'text',
+                                source: 'Bold and italic',
+                                content: 'Bold and italic',
+                            },
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'paragraph',
+                source: '~~Strike~~',
+                children: [
+                    {
+                        type: 'strike',
+                        source: '~~Strike~~',
+                        children: {
+                            type: 'text',
+                            source: 'Strike',
+                            content: 'Strike',
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'paragraph',
+                source: '`Code`',
+                children: [
+                    {
+                        type: 'code',
+                        source: '`Code`',
+                        content: 'Code',
+                    },
+                ],
+            },
+            {
+                type: 'paragraph',
+                source: '![Image](https://example.com/image.png)',
+                children: [
+                    {
+                        type: 'image',
+                        source: '![Image](https://example.com/image.png)',
+                        src: 'https://example.com/image.png',
+                        alt: 'Image',
+                    },
+                ],
+            },
+            {
+                type: 'paragraph',
+                source: '[Link](https://example.com)',
+                children: [
+                    {
+                        type: 'link',
+                        source: '![Link](https://example.com)',
+                        href: 'https://example.com',
+                        children: {
+                            type: 'text',
+                            source: 'https://example.com',
+                            content: 'Link',
+                        },
+                    },
+                ],
+            },
+        ],
+    };
 
     const html = [
         '<p><b>Bold</b></p>',
