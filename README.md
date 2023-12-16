@@ -118,6 +118,26 @@ const jsx = render(markdown, {
 });
 ```
 
+#### Handling unsupported features
+
+In some cases, you might want to intentionally omit certain features from your 
+rendered Markdown. For instance, if your platform doesn't support image rendering, 
+ou can simply return the original source text instead of trying to display the image.
+
+```ts
+import {render, unescape} from '@croct/md-lite';
+
+render(markdown, {
+    // ... other render functions
+    image: node => unescape(node.source),
+});
+```
+
+This code snippet will simply return the raw source code of the image node 
+instead of trying to render it as an image. You can adapt this approach 
+to handle any other unsupported feature by defining appropriate render 
+functions and accessing the relevant data from the AST.
+
 ## Contributing
 
 Contributions to the package are always welcome! 
