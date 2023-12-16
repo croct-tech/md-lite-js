@@ -4,6 +4,24 @@ export function parse(markdown: string): MarkdownNode {
     return MarkdownParser.parse(markdown);
 }
 
+export function unescape(input: string): string {
+    let text = '';
+
+    for (let index = 0; index < input.length; index++) {
+        const char = input[index];
+
+        if (char === '\\' && index + 1 < input.length) {
+            text += input[++index];
+
+            continue;
+        }
+
+        text += char;
+    }
+
+    return text;
+}
+
 class MismatchError extends Error {
     public constructor() {
         super('Mismatched token');
@@ -34,9 +52,15 @@ class MarkdownParser {
         const root: MarkdownNode<'fragment'> = {
             type: 'fragment',
             children: [],
+            source: '',
         };
 
+        const startIndex = this.index;
+
         let text = '';
+
+        let paragraphStartIndex = this.index;
+        let textStartIndex = this.index;
 
         while (!this.done) {
             const escapedText = this.parseText('');
@@ -52,6 +76,8 @@ class MarkdownParser {
             }
 
             if (this.matches(...MarkdownParser.NEW_PARAGRAPH)) {
+                const paragraphEndIndex = this.index;
+
                 while (MarkdownParser.NEWLINE.includes(this.current)) {
                     this.advance();
                 }
@@ -63,15 +89,19 @@ class MarkdownParser {
                         paragraph = {
                             type: 'paragraph',
                             children: root.children,
+                            source: '',
                         };
 
                         root.children = [paragraph];
                     }
 
+                    paragraph.source = this.getSlice(paragraphStartIndex, paragraphEndIndex);
+
                     if (text !== '') {
                         paragraph.children.push({
                             type: 'text',
                             content: text,
+                            source: this.getSlice(textStartIndex, paragraphEndIndex),
                         });
 
                         text = '';
@@ -80,13 +110,17 @@ class MarkdownParser {
                     root.children.push({
                         type: 'paragraph',
                         children: [],
+                        source: '',
                     });
                 }
+
+                paragraphStartIndex = this.index;
+                textStartIndex = this.index;
 
                 continue;
             }
 
-            const {index} = this;
+            const nodeStartIndex = this.index;
 
             let node: MarkdownNode|null = null;
 
@@ -100,7 +134,7 @@ class MarkdownParser {
             }
 
             if (node === null) {
-                this.seek(index);
+                this.seek(nodeStartIndex);
 
                 text += this.current;
 
@@ -119,10 +153,13 @@ class MarkdownParser {
                 parent.children.push({
                     type: 'text',
                     content: text,
+                    source: this.getSlice(textStartIndex, nodeStartIndex),
                 });
             }
 
             text = '';
+
+            textStartIndex = this.index;
 
             parent.children.push(node);
         }
@@ -137,24 +174,32 @@ class MarkdownParser {
             parent.children.push({
                 type: 'text',
                 content: text,
+                source: this.getSlice(textStartIndex, this.index),
             });
         }
 
         const lastNode = root.children[root.children.length - 1];
 
-        if (lastNode?.type === 'paragraph' && lastNode.children.length === 0) {
-            root.children.pop();
+        if (lastNode?.type === 'paragraph') {
+            if (lastNode.children.length === 0) {
+                root.children.pop();
+            } else {
+                lastNode.source = this.getSlice(paragraphStartIndex, this.index);
+            }
         }
 
         if (root.children.length === 1) {
             return root.children[0];
         }
 
+        root.source = this.getSlice(startIndex, this.index);
+
         return root;
     }
 
     private parseCurrent(): MarkdownNode|null {
         const char = this.lookAhead();
+        const startIndex = this.index;
 
         switch (char) {
             case '*':
@@ -170,6 +215,7 @@ class MarkdownParser {
                 return {
                     type: delimiter.length === 1 ? 'italic' : 'bold',
                     children: children,
+                    source: this.getSlice(startIndex, this.index),
                 };
             }
 
@@ -183,6 +229,7 @@ class MarkdownParser {
                 return {
                     type: 'strike',
                     children: children,
+                    source: this.getSlice(startIndex, this.index),
                 };
             }
 
@@ -206,6 +253,7 @@ class MarkdownParser {
                 return {
                     type: 'code',
                     content: content,
+                    source: this.getSlice(startIndex, this.index),
                 };
             }
 
@@ -226,6 +274,7 @@ class MarkdownParser {
                     type: 'image',
                     src: src,
                     alt: alt,
+                    source: this.getSlice(startIndex, this.index),
                 };
             }
 
@@ -244,6 +293,7 @@ class MarkdownParser {
                     type: 'link',
                     href: href,
                     children: label,
+                    source: this.getSlice(startIndex, this.index),
                 };
             }
 

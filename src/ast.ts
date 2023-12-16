@@ -35,5 +35,6 @@ export type MarkdownNodeType = keyof MarkdownNodeMap;
 export type MarkdownNode<T extends MarkdownNodeType = MarkdownNodeType> = {
     [K in MarkdownNodeType]: MarkdownNodeMap[K] & {
         type: K,
+        source: string,
     }
 }[T];
