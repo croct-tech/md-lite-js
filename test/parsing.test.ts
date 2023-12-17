@@ -1389,6 +1389,10 @@ describe('A Markdown parser function', () => {
             'ABC\\D',
             'ABCD',
         ],
+        [
+            'Not escaped',
+            'Not escaped',
+        ],
     ])('should unescape %s to %s', (input, output) => {
         expect(unescape(input)).toEqual(output);
     });

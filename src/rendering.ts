@@ -34,7 +34,10 @@ type VisitedMarkdownNodeMap<C> = {
 };
 
 export type VisitedMarkdownNode<C, T extends MarkdownNodeType> = {
-    [K in MarkdownNodeType]: {type: K} & VisitedMarkdownNodeMap<C>[K]
+    [K in MarkdownNodeType]: {
+        type: K,
+        source: string,
+    } & VisitedMarkdownNodeMap<C>[K]
 }[T];
 
 export interface MarkdownRenderer<T> {
@@ -62,18 +65,21 @@ function visit<T>(node: MarkdownNode, visitor: MarkdownRenderer<T>): T {
             return visitor.bold({
                 type: node.type,
                 children: visit(node.children, visitor),
+                source: node.source,
             });
 
         case 'italic':
             return visitor.italic({
                 type: node.type,
                 children: visit(node.children, visitor),
+                source: node.source,
             });
 
         case 'strike':
             return visitor.strike({
                 type: node.type,
                 children: visit(node.children, visitor),
+                source: node.source,
             });
 
         case 'code':
@@ -87,18 +93,21 @@ function visit<T>(node: MarkdownNode, visitor: MarkdownRenderer<T>): T {
                 type: node.type,
                 href: node.href,
                 children: visit(node.children, visitor),
+                source: node.source,
             });
 
         case 'paragraph':
             return visitor.paragraph({
                 type: node.type,
                 children: node.children.map(child => visit(child, visitor)),
+                source: node.source,
             });
 
         case 'fragment':
             return visitor.fragment({
                 type: node.type,
                 children: node.children.map(child => visit(child, visitor)),
+                source: node.source,
             });
     }
 }
