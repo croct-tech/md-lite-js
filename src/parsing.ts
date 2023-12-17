@@ -5,6 +5,11 @@ export function parse(markdown: string): MarkdownNode {
 }
 
 export function unescape(input: string): string {
+    if (!input.includes('\\')) {
+        // Optimization for cases where there are no escape sequences
+        return input;
+    }
+
     let text = '';
 
     for (let index = 0; index < input.length; index++) {

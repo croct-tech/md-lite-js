@@ -2,41 +2,79 @@ import {MarkdownNode} from '../src/ast';
 import {MarkdownRenderer, render, VisitedMarkdownNode} from '../src';
 
 describe('A Markdown render function', () => {
-    class HtmlRenderer implements MarkdownRenderer<string> {
-        public fragment(node: VisitedMarkdownNode<string, 'fragment'>): string {
-            return node.children.join('');
+    class TestRenderer implements MarkdownRenderer<MarkdownNode> {
+        public fragment(node: VisitedMarkdownNode<MarkdownNode, 'fragment'>): MarkdownNode {
+            return {
+                type: 'fragment',
+                source: node.source,
+                children: node.children,
+            };
         }
 
-        public text(node: VisitedMarkdownNode<string, 'text'>): string {
-            return node.content;
+        public text(node: VisitedMarkdownNode<MarkdownNode, 'text'>): MarkdownNode {
+            return {
+                type: 'text',
+                source: node.source,
+                content: node.content,
+            };
         }
 
-        public bold(node: VisitedMarkdownNode<string, 'bold'>): string {
-            return `<b>${node.children}</b>`;
+        public bold(node: VisitedMarkdownNode<MarkdownNode, 'bold'>): MarkdownNode {
+            return {
+                type: 'bold',
+                source: node.source,
+                children: node.children,
+            };
         }
 
-        public italic(node: VisitedMarkdownNode<string, 'italic'>): string {
-            return `<i>${node.children}</i>`;
+        public italic(node: VisitedMarkdownNode<MarkdownNode, 'italic'>): MarkdownNode {
+            return {
+                type: 'italic',
+                source: node.source,
+                children: node.children,
+            };
         }
 
-        public strike(node: VisitedMarkdownNode<string, 'strike'>): string {
-            return `<s>${node.children}</s>`;
+        public strike(node: VisitedMarkdownNode<MarkdownNode, 'strike'>): MarkdownNode {
+            return {
+                type: 'strike',
+                source: node.source,
+                children: node.children,
+            };
         }
 
-        public code(node: VisitedMarkdownNode<string, 'code'>): string {
-            return `<code>${node.content}</code>`;
+        public code(node: VisitedMarkdownNode<MarkdownNode, 'code'>): MarkdownNode {
+            return {
+                type: 'code',
+                source: node.source,
+                content: node.content,
+            };
         }
 
-        public image(node: VisitedMarkdownNode<string, 'image'>): string {
-            return `<img src="${node.src}" alt="${node.alt}">`;
+        public image(node: VisitedMarkdownNode<MarkdownNode, 'image'>): MarkdownNode {
+            return {
+                type: 'image',
+                source: node.source,
+                alt: node.alt,
+                src: node.src,
+            };
         }
 
-        public link(node: VisitedMarkdownNode<string, 'link'>): string {
-            return `<a href="${node.href}">${node.children}</a>`;
+        public link(node: VisitedMarkdownNode<MarkdownNode, 'link'>): MarkdownNode {
+            return {
+                type: 'link',
+                source: node.source,
+                href: node.href,
+                children: node.children,
+            };
         }
 
-        public paragraph(node: VisitedMarkdownNode<string, 'paragraph'>): string {
-            return `<p>${node.children.join('')}</p>`;
+        public paragraph(node: VisitedMarkdownNode<MarkdownNode, 'paragraph'>): MarkdownNode {
+            return {
+                type: 'paragraph',
+                source: node.source,
+                children: node.children,
+            };
         }
     }
 
@@ -147,11 +185,11 @@ describe('A Markdown render function', () => {
                 children: [
                     {
                         type: 'link',
-                        source: '![Link](https://example.com)',
+                        source: '[Link](https://example.com)',
                         href: 'https://example.com',
                         children: {
                             type: 'text',
-                            source: 'https://example.com',
+                            source: 'Link',
                             content: 'Link',
                         },
                     },
@@ -160,21 +198,11 @@ describe('A Markdown render function', () => {
         ],
     };
 
-    const html = [
-        '<p><b>Bold</b></p>',
-        '<p><i>Italic</i></p>',
-        '<p><b><i>Bold and italic</i></b></p>',
-        '<p><s>Strike</s></p>',
-        '<p><code>Code</code></p>',
-        '<p><img src="https://example.com/image.png" alt="Image"></p>',
-        '<p><a href="https://example.com">Link</a></p>',
-    ].join('');
-
     it('should render a Markdown tree', () => {
-        expect(render(tree, new HtmlRenderer())).toBe(html);
+        expect(render(tree, new TestRenderer())).toEqual(tree);
     });
 
     it('should parse and render a Markdown string', () => {
-        expect(render(markdown, new HtmlRenderer())).toBe(html);
+        expect(render(markdown, new TestRenderer())).toEqual(tree);
     });
 });
