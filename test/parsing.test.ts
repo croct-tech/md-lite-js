@@ -946,6 +946,35 @@ describe('A Markdown parser function', () => {
                 ],
             },
         },
+        'link with spaces': {
+            input: 'Hello, [world]( image.png )!',
+            output: {
+                type: 'fragment',
+                source: 'Hello, [world]( image.png )!',
+                children: [
+                    {
+                        type: 'text',
+                        source: 'Hello, ',
+                        content: 'Hello, ',
+                    },
+                    {
+                        type: 'link',
+                        source: '[world]( image.png )',
+                        href: 'image.png',
+                        children: {
+                            type: 'text',
+                            source: 'world',
+                            content: 'world',
+                        },
+                    },
+                    {
+                        type: 'text',
+                        source: '!',
+                        content: '!',
+                    },
+                ],
+            },
+        },
         'fenced code (unsupported)': {
             input: 'Hello, ```world```!',
             output: {
@@ -1135,6 +1164,36 @@ describe('A Markdown parser function', () => {
                         source: '[world](image.png "The world")',
                         href: 'image.png',
                         title: 'The world',
+                        children: {
+                            type: 'text',
+                            source: 'world',
+                            content: 'world',
+                        },
+                    },
+                    {
+                        type: 'text',
+                        source: '!',
+                        content: '!',
+                    },
+                ],
+            },
+        },
+        'link with title and escaped quote': {
+            input: 'Hello, [world](image.png "The \\"world\\"")!',
+            output: {
+                type: 'fragment',
+                source: 'Hello, [world](image.png "The \\"world\\"")!',
+                children: [
+                    {
+                        type: 'text',
+                        source: 'Hello, ',
+                        content: 'Hello, ',
+                    },
+                    {
+                        type: 'link',
+                        source: '[world](image.png "The \\"world\\"")',
+                        href: 'image.png',
+                        title: 'The "world"',
                         children: {
                             type: 'text',
                             source: 'world',
