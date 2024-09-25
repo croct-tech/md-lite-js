@@ -290,14 +290,24 @@ class MarkdownParser {
 
                 this.match('](');
 
-                const [href, titleWithEndQuote] = this.parseText(')').split(/\s+"/);
+                const href = this.parseText(')', '"');
+
+                let title: string|undefined;
+
+                if (this.matches('"')) {
+                    this.match('"');
+
+                    title = this.parseText('"');
+
+                    this.match('"');
+                }
 
                 this.match(')');
 
                 return {
                     type: 'link',
-                    href: href,
-                    title: titleWithEndQuote?.slice(0, -1) /* remove quote character at the end */,
+                    href: href.trim(),
+                    ...(title !== undefined ? {title: title} : {}),
                     children: label,
                     source: this.getSlice(startIndex, this.index),
                 };
@@ -308,7 +318,7 @@ class MarkdownParser {
         }
     }
 
-    private parseText(end: string): string {
+    private parseText(...end: string[]): string {
         let text = '';
 
         while (!this.done) {
@@ -322,7 +332,7 @@ class MarkdownParser {
                 continue;
             }
 
-            if (end === '' || this.matches(end) || this.matches(...MarkdownParser.NEWLINE)) {
+            if (end.some(token => (token === '' || this.matches(token))) || this.matches(...MarkdownParser.NEWLINE)) {
                 break;
             }
 
