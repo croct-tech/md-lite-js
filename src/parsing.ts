@@ -290,13 +290,14 @@ class MarkdownParser {
 
                 this.match('](');
 
-                const href = this.parseText(')');
+                const [href, titleWithEndQuote] = this.parseText(')').split(/\s+"/);
 
                 this.match(')');
 
                 return {
                     type: 'link',
                     href: href,
+                    title: titleWithEndQuote?.slice(0, -1) /* remove quote character at the end */,
                     children: label,
                     source: this.getSlice(startIndex, this.index),
                 };
