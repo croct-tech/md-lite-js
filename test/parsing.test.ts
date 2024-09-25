@@ -1119,6 +1119,36 @@ describe('A Markdown parser function', () => {
                 ],
             },
         },
+        'link with title': {
+            input: 'Hello, [world](image.png "The world")!',
+            output: {
+                type: 'fragment',
+                source: 'Hello, [world](image.png "The world")!',
+                children: [
+                    {
+                        type: 'text',
+                        source: 'Hello, ',
+                        content: 'Hello, ',
+                    },
+                    {
+                        type: 'link',
+                        source: '[world](image.png "The world")',
+                        href: 'image.png',
+                        title: 'The world',
+                        children: {
+                            type: 'text',
+                            source: 'world',
+                            content: 'world',
+                        },
+                    },
+                    {
+                        type: 'text',
+                        source: '!',
+                        content: '!',
+                    },
+                ],
+            },
+        },
         image: {
             input: 'Hello, ![world](image.png)!',
             output: {

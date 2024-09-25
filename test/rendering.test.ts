@@ -65,6 +65,7 @@ describe('A Markdown render function', () => {
                 type: 'link',
                 source: node.source,
                 href: node.href,
+                title: node.title,
                 children: node.children,
             };
         }
@@ -86,6 +87,7 @@ describe('A Markdown render function', () => {
         '`Code`',
         '![Image](https://example.com/image.png)',
         '[Link](https://example.com)',
+        '[Link with title](https://example.com "Link title")',
     ].join('\n\n');
 
     const tree: MarkdownNode = {
@@ -191,6 +193,23 @@ describe('A Markdown render function', () => {
                             type: 'text',
                             source: 'Link',
                             content: 'Link',
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'paragraph',
+                source: '[Link with title](https://example.com "Link title")',
+                children: [
+                    {
+                        type: 'link',
+                        source: '[Link with title](https://example.com "Link title")',
+                        href: 'https://example.com',
+                        title: 'Link title',
+                        children: {
+                            type: 'text',
+                            source: 'Link with title',
+                            content: 'Link with title',
                         },
                     },
                 ],

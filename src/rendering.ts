@@ -19,6 +19,7 @@ type VisitedMarkdownNodeMap<C> = {
     },
     link: {
         href: string,
+        title?: string,
         children: C,
     },
     image: {
@@ -92,6 +93,7 @@ function visit<T>(node: MarkdownNode, visitor: MarkdownRenderer<T>): T {
             return visitor.link({
                 type: node.type,
                 href: node.href,
+                title: node.title,
                 children: visit(node.children, visitor),
                 source: node.source,
             });

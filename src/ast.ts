@@ -16,6 +16,7 @@ type MarkdownNodeMap = {
     },
     link: {
         href: string,
+        title?: string,
         children: MarkdownNode,
     },
     image: {
