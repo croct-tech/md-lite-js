@@ -83,6 +83,7 @@ import {render} from '@croct/md-lite';
 const markdown = '**Hello**, [World](https://example.com)';
 
 const html = render(markdown, {
+    fragment: node => node.children.join(''),
     text: node => node.content,
     bold: node => `<b>${node.children}</b>`,
     italic: node => `<i>${node.children}</i>`,
@@ -91,7 +92,6 @@ const html = render(markdown, {
     link: node => `<a href="${node.href}">${node.children}</a>`,
     image: node => `<img src="${node.src}" alt="${node.alt}">`,
     paragraph: node => `<p>${node.children.join('')}</p>`,
-    fragment: node => node.children.join(''),
 });
 ```
 
@@ -104,6 +104,7 @@ import {render} from '@croct/md-lite';
 const markdown = '**Hello**, [World](https://example.com)';
 
 const jsx = render(markdown, {
+    fragment: node => node.children,
     text: node => node.content,
     bold: node => <b key={node.index}>{node.children}</b>,
     italic: node => <i key={node.index}>{node.children}</i>,
@@ -112,7 +113,6 @@ const jsx = render(markdown, {
     link: node => <a key={node.index} href={node.href}>{node.children}</a>,
     image: node => <img key={node.index} src={node.src} alt={node.alt} />,
     paragraph: node => <p key={node.index}>{node.children}</p>,
-    fragment: node => node.children.map(child => <Fragment key={child.index}>{child}</Fragment>),
 });
 ```
 
