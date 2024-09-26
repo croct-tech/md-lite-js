@@ -224,4 +224,84 @@ describe('A Markdown render function', () => {
     it('should parse and render a Markdown string', () => {
         expect(render(markdown, new TestRenderer())).toEqual(tree);
     });
+
+    it('should assign a global index to each node', () => {
+        const input = '**Bold**\n*Italic*\n***Bold and italic***\n';
+
+        const result = render<MarkdownNode>(input, {
+            fragment: node => node,
+            text: node => node,
+            bold: node => node,
+            italic: node => node,
+            strike: node => node,
+            code: node => node,
+            image: node => node,
+            link: node => node,
+            paragraph: node => node,
+        });
+
+        expect(result).toEqual({
+            index: 10,
+            type: 'fragment',
+            source: '**Bold**\n*Italic*\n***Bold and italic***\n',
+            children: [
+                {
+                    index: 1,
+                    type: 'bold',
+                    source: '**Bold**',
+                    children: {
+                        index: 0,
+                        type: 'text',
+                        content: 'Bold',
+                        source: 'Bold',
+                    },
+                },
+                {
+                    index: 2,
+                    type: 'text',
+                    content: '\n',
+                    source: '\n',
+                },
+                {
+                    index: 4,
+                    type: 'italic',
+                    source: '*Italic*',
+                    children: {
+                        index: 3,
+                        type: 'text',
+                        content: 'Italic',
+                        source: 'Italic',
+                    },
+                },
+                {
+                    index: 5,
+                    type: 'text',
+                    content: '\n',
+                    source: '\n',
+                },
+                {
+                    index: 8,
+                    type: 'bold',
+                    source: '***Bold and italic***',
+                    children: {
+                        index: 7,
+                        type: 'italic',
+                        source: '*Bold and italic*',
+                        children: {
+                            index: 6,
+                            type: 'text',
+                            content: 'Bold and italic',
+                            source: 'Bold and italic',
+                        },
+                    },
+                },
+                {
+                    index: 9,
+                    type: 'text',
+                    content: '\n',
+                    source: '\n',
+                },
+            ],
+        });
+    });
 });

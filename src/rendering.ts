@@ -37,6 +37,7 @@ type VisitedMarkdownNodeMap<C> = {
 export type VisitedMarkdownNode<C, T extends MarkdownNodeType> = {
     [K in MarkdownNodeType]: {
         type: K,
+        index: number,
         source: string,
     } & VisitedMarkdownNodeMap<C>[K]
 }[T];
@@ -57,59 +58,81 @@ export function render<T>(markdown: string|MarkdownNode, visitor: MarkdownRender
     return visit(typeof markdown === 'string' ? parse(markdown) : markdown, visitor);
 }
 
-function visit<T>(node: MarkdownNode, visitor: MarkdownRenderer<T>): T {
-    switch (node.type) {
-        case 'text':
-            return visitor.text(node);
+function visit<T>(root: MarkdownNode, visitor: MarkdownRenderer<T>): T {
+    let index = 0;
 
-        case 'bold':
-            return visitor.bold({
-                type: node.type,
-                children: visit(node.children, visitor),
-                source: node.source,
-            });
+    function visitNode(node: MarkdownNode): T {
+        switch (node.type) {
+            case 'text':
+                return visitor.text({
+                    ...node,
+                    index: index++,
+                });
 
-        case 'italic':
-            return visitor.italic({
-                type: node.type,
-                children: visit(node.children, visitor),
-                source: node.source,
-            });
+            case 'bold':
+                return visitor.bold({
+                    type: node.type,
+                    children: visitNode(node.children),
+                    source: node.source,
+                    index: index++,
+                });
 
-        case 'strike':
-            return visitor.strike({
-                type: node.type,
-                children: visit(node.children, visitor),
-                source: node.source,
-            });
+            case 'italic':
+                return visitor.italic({
+                    type: node.type,
+                    children: visitNode(node.children),
+                    index: index++,
+                    source: node.source,
+                });
 
-        case 'code':
-            return visitor.code(node);
+            case 'strike':
+                return visitor.strike({
+                    type: node.type,
+                    children: visitNode(node.children),
+                    index: index++,
+                    source: node.source,
+                });
 
-        case 'image':
-            return visitor.image(node);
+            case 'code':
+                return visitor.code({
+                    ...node,
+                    index: index++,
+                });
 
-        case 'link':
-            return visitor.link({
-                type: node.type,
-                href: node.href,
-                title: node.title,
-                children: visit(node.children, visitor),
-                source: node.source,
-            });
+            case 'image':
+                return visitor.image({
+                    ...node,
+                    index: index++,
+                });
 
-        case 'paragraph':
-            return visitor.paragraph({
-                type: node.type,
-                children: node.children.map(child => visit(child, visitor)),
-                source: node.source,
-            });
+            case 'link':
+                return visitor.link({
+                    type: node.type,
+                    href: node.href,
+                    title: node.title,
+                    children: visitNode(node.children),
+                    index: index++,
+                    source: node.source,
+                });
 
-        case 'fragment':
-            return visitor.fragment({
-                type: node.type,
-                children: node.children.map(child => visit(child, visitor)),
-                source: node.source,
-            });
+            case 'paragraph': {
+                return visitor.paragraph({
+                    type: node.type,
+                    children: node.children.map(child => visitNode(child)),
+                    index: index++,
+                    source: node.source,
+                });
+            }
+
+            case 'fragment':
+                return visitor.fragment({
+                    type: node.type,
+                    children: node.children.map(child => visitNode(child)),
+                    index: index++,
+                    source: node.source,
+                });
+        }
     }
+
+    return visitNode(root);
 }

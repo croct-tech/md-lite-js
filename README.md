@@ -105,16 +105,14 @@ const markdown = '**Hello**, [World](https://example.com)';
 
 const jsx = render(markdown, {
     text: node => node.content,
-    bold: node => <b>{node.children}</b>,
-    italic: node => <i>{node.children}</i>,
-    strike: node => <s>{node.children}</s>,
-    code: node => <code>{node.content}</code>,
-    link: node => <a href={node.href}>{node.children}</a>,
-    image: node => <img src={node.src} alt={node.alt} />,
-    paragraph: node => <p>{node.children}</p>,
-    fragment: node => node.children.map(
-        (child, index) => <Fragment key={index}>{child}</Fragment>
-    ),
+    bold: node => <b key={node.index}>{node.children}</b>,
+    italic: node => <i key={node.index}>{node.children}</i>,
+    strike: node => <s key={node.index}>{node.children}</s>,
+    code: node => <code key={node.index}>{node.content}</code>,
+    link: node => <a key={node.index} href={node.href}>{node.children}</a>,
+    image: node => <img key={node.index} src={node.src} alt={node.alt} />,
+    paragraph: node => <p key={node.index}>{node.children}</p>,
+    fragment: node => node.children.map(child => <Fragment key={child.index}>{child}</Fragment>),
 });
 ```
 
