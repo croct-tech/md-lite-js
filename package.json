@@ -32,7 +32,7 @@
   "devDependencies": {
     "@croct/eslint-plugin": "^0.7.0",
     "@swc/jest": "^0.2.24",
-    "@types/jest": "^29.0.0",
+    "@types/jest": "^30.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.22",
     "jest": "^30.0.0",
