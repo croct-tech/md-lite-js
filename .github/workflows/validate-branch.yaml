@@ -100,10 +100,4 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm run test
-
-      - uses: qltysh/qlty-action/coverage@v1
-        with:
-          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
-          files: ${{ github.workspace }}/coverage/lcov.info
-          skip-errors: false
+        run: npm test
