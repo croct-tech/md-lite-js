@@ -1,4 +1,4 @@
-import {MarkdownNode, MarkdownNodeType} from './ast';
+import type {MarkdownNode, MarkdownNodeType} from './ast';
 import {parse} from './parsing';
 
 type VisitedMarkdownNodeMap<C> = {
@@ -54,7 +54,7 @@ export interface MarkdownRenderer<T> {
     fragment(node: VisitedMarkdownNode<T, 'fragment'>): T;
 }
 
-export function render<T>(markdown: string|MarkdownNode, visitor: MarkdownRenderer<T>): T {
+export function render<T>(markdown: string | MarkdownNode, visitor: MarkdownRenderer<T>): T {
     return visit(typeof markdown === 'string' ? parse(markdown) : markdown, visitor);
 }
 
