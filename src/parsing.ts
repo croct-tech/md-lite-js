@@ -1,4 +1,4 @@
-import {MarkdownNode} from './ast';
+import type {MarkdownNode} from './ast';
 
 export function parse(markdown: string): MarkdownNode {
     return MarkdownParser.parse(markdown);
@@ -127,7 +127,7 @@ class MarkdownParser {
 
             const nodeStartIndex = this.index;
 
-            let node: MarkdownNode|null = null;
+            let node: MarkdownNode | null = null;
 
             try {
                 node = this.parseCurrent();
@@ -202,7 +202,7 @@ class MarkdownParser {
         return root;
     }
 
-    private parseCurrent(): MarkdownNode|null {
+    private parseCurrent(): MarkdownNode | null {
         const char = this.lookAhead();
         const startIndex = this.index;
 
@@ -292,7 +292,7 @@ class MarkdownParser {
 
                 const href = this.parseText(')', '"');
 
-                let title: string|undefined;
+                let title: string | undefined;
 
                 if (this.matches('"')) {
                     this.match('"');
