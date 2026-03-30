@@ -7,47 +7,13 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          registry-url: 'https://registry.npmjs.org'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Cache dependencies
-        id: cache-dependencies
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node_modules-${{ hashFiles('**/package-lock.json') }}
-
-      - name: Install dependencies
-        if: steps.cache-dependencies.outputs.cache-hit != 'true'
-        run: |-
-          npm ci
-          rm -rf ~/.npmrc
-
-      - name: Build package
-        run: |-
-          npm run build
-
-      - name: Prepare release
-        run: |-
-          cp package.json LICENSE README.md build/
-          cd build
-          sed -i -e "s~\"version\": \"0.0.0-dev\"~\"version\": \"${GITHUB_REF##*/}\"~" package.json
-
-      - name: Publish pre-release to NPM
-        if: ${{ github.event.release.prerelease }}
-        run: |-
-          cd build
-          npm publish --access public --tag next
-
-      - name: Publish release to NPM
-        if: ${{ !github.event.release.prerelease }}
-        run: |-
-          cd build
-          npm publish --access public
+    uses: ./.github/workflows/npm-publish.yml
+    with:
+      node-version: "18"
+      publish-access: "public"
+      prepare-script: >-
+        cp package.json LICENSE README.md build/ &&
+        cd build &&
+        sed -i -e "s~\"version\": \"0.0.0-dev\"~\"version\": \"${GITHUB_REF##*/}\"~" package.json
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
