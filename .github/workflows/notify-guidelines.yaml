@@ -1,11 +1,11 @@
-name: Guidelines
+name: Notify guidelines
 
 on:
   pull_request:
     types:
       - opened
 jobs:
-  send-guidelines:
+  notify:
     runs-on: ubuntu-latest
     steps:
       - uses: wow-actions/auto-comment@v1
