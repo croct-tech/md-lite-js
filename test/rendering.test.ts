@@ -304,4 +304,70 @@ describe('A Markdown render function', () => {
             ],
         });
     });
+
+    const inline: MarkdownRenderer<string> = {
+        fragment: node => node.children.join(''),
+        text: node => node.content,
+        bold: node => `<b>${node.children}</b>`,
+        italic: node => `<i>${node.children}</i>`,
+        strike: node => `<s>${node.children}</s>`,
+        code: node => `<code>${node.content}</code>`,
+        image: node => `<img src="${node.src}" alt="${node.alt}">`,
+        link: node => `<a href="${node.href}">${node.children}</a>`,
+        paragraph: node => `<p>${node.children.join('')}</p>`,
+    };
+
+    const blocks = [
+        '# Title',
+        '> Quoted **text**',
+        '- One\n- Two',
+        '3. Three\n4. Four',
+        '```js\nconst a = 1;\n```',
+        '---',
+    ].join('\n\n');
+
+    it('should render blocks', () => {
+        const html = render(blocks, {
+            ...inline,
+            heading: node => `<h${node.level}>${node.children}</h${node.level}>`,
+            quote: node => `<blockquote>${node.children.join('')}</blockquote>`,
+            list: node => (
+                node.ordered
+                    ? `<ol start="${node.start}">${node.items.join('')}</ol>`
+                    : `<ul>${node.items.join('')}</ul>`
+            ),
+            listItem: node => `<li>${node.children.join('')}</li>`,
+            codeBlock: node => `<pre lang="${node.language}">${node.content}</pre>`,
+            rule: () => '<hr>',
+        });
+
+        expect(html).toBe(
+            '<h1>Title</h1>'
+            + '<blockquote><p>Quoted <b>text</b></p></blockquote>'
+            + '<ul><li>One</li><li>Two</li></ul>'
+            + '<ol start="3"><li>Three</li><li>Four</li></ol>'
+            + '<pre lang="js">const a = 1;</pre>'
+            + '<hr>',
+        );
+    });
+
+    it('should render blocks a renderer does not render as paragraphs of their text', () => {
+        expect(render(blocks, inline)).toBe(
+            '<p># Title</p>'
+            + '<p>> Quoted <b>text</b></p>'
+            + '<p>- One\n- Two</p>'
+            + '<p>3. Three\n4. Four</p>'
+            + '<p>```js\nconst a = 1;\n```</p>'
+            + '<p>---</p>',
+        );
+    });
+
+    it('should render list items a renderer does not render as paragraphs of their text', () => {
+        const html = render('- One\n\n  Still one', {
+            ...inline,
+            list: node => `<ul>${node.items.join('')}</ul>`,
+        });
+
+        expect(html).toBe('<ul><p>- One</p><p>  Still one</p></ul>');
+    });
 });

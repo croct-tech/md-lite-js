@@ -29,6 +29,27 @@ type VisitedMarkdownNodeMap<C> = {
     paragraph: {
         children: C[],
     },
+    heading: {
+        level: number,
+        children: C,
+    },
+    quote: {
+        children: C[],
+    },
+    list: {
+        ordered: boolean,
+        start?: number,
+        tight: boolean,
+        items: C[],
+    },
+    listItem: {
+        children: C[],
+    },
+    codeBlock: {
+        content: string,
+        language?: string,
+    },
+    rule: Record<never, never>,
     fragment: {
         children: C[],
     },
@@ -52,6 +73,17 @@ export interface MarkdownRenderer<T> {
     image(node: VisitedMarkdownNode<T, 'image'>): T;
     paragraph(node: VisitedMarkdownNode<T, 'paragraph'>): T;
     fragment(node: VisitedMarkdownNode<T, 'fragment'>): T;
+
+    /*
+     * Blocks are optional, so a renderer that doesn't render one renders it as a paragraph of its
+     * text, with its inline formatting, as it did before blocks were parsed.
+     */
+    heading?(node: VisitedMarkdownNode<T, 'heading'>): T;
+    quote?(node: VisitedMarkdownNode<T, 'quote'>): T;
+    list?(node: VisitedMarkdownNode<T, 'list'>): T;
+    listItem?(node: VisitedMarkdownNode<T, 'listItem'>): T;
+    codeBlock?(node: VisitedMarkdownNode<T, 'codeBlock'>): T;
+    rule?(node: VisitedMarkdownNode<T, 'rule'>): T;
 }
 
 export function render<T>(markdown: string|MarkdownNode, visitor: MarkdownRenderer<T>): T {
@@ -60,6 +92,20 @@ export function render<T>(markdown: string|MarkdownNode, visitor: MarkdownRender
 
 function visit<T>(root: MarkdownNode, visitor: MarkdownRenderer<T>): T {
     let index = 0;
+
+    function visitText(node: MarkdownNode): T {
+        const inline = parse(node.source, {blocks: false});
+
+        if (inline.type === 'paragraph' || (inline.type === 'fragment' && inline.children[0]?.type === 'paragraph')) {
+            return visitNode(inline);
+        }
+
+        return visitNode({
+            type: 'paragraph',
+            children: inline.type === 'fragment' ? inline.children : [inline],
+            source: node.source,
+        });
+    }
 
     function visitNode(node: MarkdownNode): T {
         switch (node.type) {
@@ -123,6 +169,78 @@ function visit<T>(root: MarkdownNode, visitor: MarkdownRenderer<T>): T {
                     source: node.source,
                 });
             }
+
+            case 'heading':
+                if (visitor.heading === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.heading({
+                    type: node.type,
+                    level: node.level,
+                    children: visitNode(node.children),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'quote':
+                if (visitor.quote === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.quote({
+                    type: node.type,
+                    children: node.children.map(child => visitNode(child)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'list':
+                if (visitor.list === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.list({
+                    type: node.type,
+                    ordered: node.ordered,
+                    ...(node.start !== undefined ? {start: node.start} : {}),
+                    tight: node.tight,
+                    items: node.items.map(item => visitNode(item)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'listItem':
+                if (visitor.listItem === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.listItem({
+                    type: node.type,
+                    children: node.children.map(child => visitNode(child)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'codeBlock':
+                if (visitor.codeBlock === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.codeBlock({
+                    ...node,
+                    index: index++,
+                });
+
+            case 'rule':
+                if (visitor.rule === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.rule({
+                    ...node,
+                    index: index++,
+                });
 
             case 'fragment':
                 return visitor.fragment({

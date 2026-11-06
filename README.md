@@ -27,9 +27,10 @@ Perfect for those who need to handle basic Markdown syntax without the overhead 
 
 **Features**
 
-- 🪶 **Lightweight:**  Zero dependencies, about 1.5 KB gzipped.
+- 🪶 **Lightweight:**  Zero dependencies, under 4 KB gzipped.
 - 🌐 **Cross-environment:**  Works in Node.js and browsers.
-- ✍️ **Minimalist:** Supports only _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](#), 🖼️ images, and ¶ paragraphs.
+- ✍️ **Minimalist:** Supports only _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](#), 🖼️ images, ¶ paragraphs,
+  headings, quotes, lists, code blocks, and horizontal rules.
 - 🛠 **Flexible:** Render whatever you want, from HTML to JSX.
 
 ### Who is this library for?
@@ -69,6 +70,32 @@ const ast = parse(markdown);
 The `parse` function returns a tree-like structure called an [Abstract Syntax Tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree) (AST).
 You can find the full AST definition [here](/src/ast.ts).
 
+#### Parsing blocks
+
+Besides inline formatting, the parser reads the following blocks, as
+[CommonMark](https://spec.commonmark.org) does:
+
+- Headings, from `# Heading` to `###### Heading`, or a paragraph underlined with `===` or `---`
+- Quotes, with each line starting with `>`
+- Lists, with items starting with `-`, `*`, or `+`, or with a number followed by `.` or `)`,
+  nested by indentation, and with as many paragraphs per item as needed
+- Code blocks, fenced by three or more backticks or tildes, with an optional language
+- Horizontal rules, like `---`, `***`, or `___`
+
+A list is tight unless a blank line sets its items apart, or the blocks of an item.
+The text of the items of a tight list is not wrapped in paragraphs, so that it renders
+as a compact list, while every block in a loose list is.
+
+For short texts that should never hold blocks, like titles, you can parse only inline
+formatting and paragraphs:
+
+```ts
+import {parse} from '@croct/md-lite';
+
+// The heading is read as text
+const ast = parse('# Not a heading', {blocks: false});
+```
+
 ### Rendering Markdown
 
 To render an AST into whatever you want, use the `render` function.
@@ -90,6 +117,16 @@ const html = render(markdown, {
     link: node => `<a href="${node.href}">${node.children}</a>`,
     image: node => `<img src="${node.src}" alt="${node.alt}">`,
     paragraph: node => `<p>${node.children.join('')}</p>`,
+    heading: node => `<h${node.level}>${node.children}</h${node.level}>`,
+    quote: node => `<blockquote>${node.children.join('')}</blockquote>`,
+    list: node => (
+        node.ordered
+            ? `<ol start="${node.start}">${node.items.join('')}</ol>`
+            : `<ul>${node.items.join('')}</ul>`
+    ),
+    listItem: node => `<li>${node.children.join('')}</li>`,
+    codeBlock: node => `<pre><code>${node.content}</code></pre>`,
+    rule: () => '<hr>',
 });
 ```
 
@@ -111,6 +148,20 @@ const jsx = render(markdown, {
     link: node => <a key={node.index} href={node.href}>{node.children}</a>,
     image: node => <img key={node.index} src={node.src} alt={node.alt} />,
     paragraph: node => <p key={node.index}>{node.children}</p>,
+    heading: node => {
+        const Heading = `h${node.level}` as const;
+
+        return <Heading key={node.index}>{node.children}</Heading>;
+    },
+    quote: node => <blockquote key={node.index}>{node.children}</blockquote>,
+    list: node => (
+        node.ordered
+            ? <ol key={node.index} start={node.start}>{node.items}</ol>
+            : <ul key={node.index}>{node.items}</ul>
+    ),
+    listItem: node => <li key={node.index}>{node.children}</li>,
+    codeBlock: node => <pre key={node.index}><code>{node.content}</code></pre>,
+    rule: node => <hr key={node.index} />,
 });
 ```
 
@@ -133,6 +184,10 @@ This code snippet will simply return the raw source code of the image node
 instead of trying to render it as an image. You can adapt this approach 
 to handle any other unsupported feature by defining appropriate render 
 functions and accessing the relevant data from the AST.
+
+The render functions for blocks are optional. A block without one, like a list
+when `list` is not given, is rendered as a paragraph of its source text,
+with its inline formatting, as it would be if blocks were not parsed.
 
 ## Contributing
 

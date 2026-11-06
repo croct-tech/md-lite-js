@@ -1453,8 +1453,1637 @@ describe('A Markdown parser function', () => {
                 ],
             },
         },
+        'headings of every level': {
+            input: '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six',
+            output: {
+                type: 'fragment',
+                source: '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six',
+                children: [
+                    {
+                        type: 'heading',
+                        source: '# One',
+                        level: 1,
+                        children: {
+                            type: 'text',
+                            source: 'One',
+                            content: 'One',
+                        },
+                    },
+                    {
+                        type: 'heading',
+                        source: '## Two',
+                        level: 2,
+                        children: {
+                            type: 'text',
+                            source: 'Two',
+                            content: 'Two',
+                        },
+                    },
+                    {
+                        type: 'heading',
+                        source: '### Three',
+                        level: 3,
+                        children: {
+                            type: 'text',
+                            source: 'Three',
+                            content: 'Three',
+                        },
+                    },
+                    {
+                        type: 'heading',
+                        source: '#### Four',
+                        level: 4,
+                        children: {
+                            type: 'text',
+                            source: 'Four',
+                            content: 'Four',
+                        },
+                    },
+                    {
+                        type: 'heading',
+                        source: '##### Five',
+                        level: 5,
+                        children: {
+                            type: 'text',
+                            source: 'Five',
+                            content: 'Five',
+                        },
+                    },
+                    {
+                        type: 'heading',
+                        source: '###### Six',
+                        level: 6,
+                        children: {
+                            type: 'text',
+                            source: 'Six',
+                            content: 'Six',
+                        },
+                    },
+                ],
+            },
+        },
+        'a heading with formatting and closing hashes': {
+            input: '## A **bold** heading ##',
+            output: {
+                type: 'heading',
+                source: '## A **bold** heading ##',
+                level: 2,
+                children: {
+                    type: 'fragment',
+                    source: 'A **bold** heading',
+                    children: [
+                        {
+                            type: 'text',
+                            source: 'A ',
+                            content: 'A ',
+                        },
+                        {
+                            type: 'bold',
+                            source: '**bold**',
+                            children: {
+                                type: 'text',
+                                source: 'bold',
+                                content: 'bold',
+                            },
+                        },
+                        {
+                            type: 'text',
+                            source: ' heading',
+                            content: ' heading',
+                        },
+                    ],
+                },
+            },
+        },
+        'an empty heading': {
+            input: '#',
+            output: {
+                type: 'heading',
+                source: '#',
+                level: 1,
+                children: {
+                    type: 'fragment',
+                    source: '',
+                    children: [],
+                },
+            },
+        },
+        'a hash without a space as text': {
+            input: '#hashtag',
+            output: {
+                type: 'text',
+                source: '#hashtag',
+                content: '#hashtag',
+            },
+        },
+        'seven hashes as text': {
+            input: '####### Seven',
+            output: {
+                type: 'text',
+                source: '####### Seven',
+                content: '####### Seven',
+            },
+        },
+        'an escaped hash as text': {
+            input: '\\# Not a heading',
+            output: {
+                type: 'text',
+                source: '\\# Not a heading',
+                content: '# Not a heading',
+            },
+        },
+        'an underlined heading of level 1': {
+            input: 'Title\n===',
+            output: {
+                type: 'heading',
+                source: 'Title\n===',
+                level: 1,
+                children: {
+                    type: 'text',
+                    source: 'Title',
+                    content: 'Title',
+                },
+            },
+        },
+        'an underlined heading of level 2': {
+            input: 'Title\n---',
+            output: {
+                type: 'heading',
+                source: 'Title\n---',
+                level: 2,
+                children: {
+                    type: 'text',
+                    source: 'Title',
+                    content: 'Title',
+                },
+            },
+        },
+        'an underlined heading of many lines': {
+            input: 'First line\n  second line\n---',
+            output: {
+                type: 'heading',
+                source: 'First line\n  second line\n---',
+                level: 2,
+                children: {
+                    type: 'text',
+                    source: 'First line\nsecond line',
+                    content: 'First line\nsecond line',
+                },
+            },
+        },
+        'a rule after a blank line rather than an underline': {
+            input: 'Text\n\n---',
+            output: {
+                type: 'fragment',
+                source: 'Text\n\n---',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'Text',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Text',
+                                content: 'Text',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'rule',
+                        source: '---',
+                    },
+                ],
+            },
+        },
+        'a quote': {
+            input: '> Quoted **text**\n> on two lines',
+            output: {
+                type: 'quote',
+                source: '> Quoted **text**\n> on two lines',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'Quoted **text**\non two lines',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Quoted ',
+                                content: 'Quoted ',
+                            },
+                            {
+                                type: 'bold',
+                                source: '**text**',
+                                children: {
+                                    type: 'text',
+                                    source: 'text',
+                                    content: 'text',
+                                },
+                            },
+                            {
+                                type: 'text',
+                                source: '\non two lines',
+                                content: '\non two lines',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a quote with paragraphs and a list': {
+            input: '> First\n>\n> - One\n> - Two',
+            output: {
+                type: 'quote',
+                source: '> First\n>\n> - One\n> - Two',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'First',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'First',
+                                content: 'First',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'list',
+                        source: '- One\n- Two',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                            {
+                                type: 'listItem',
+                                source: '- Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a quote in a quote': {
+            input: '> > Inner',
+            output: {
+                type: 'quote',
+                source: '> > Inner',
+                children: [
+                    {
+                        type: 'quote',
+                        source: '> Inner',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'Inner',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Inner',
+                                        content: 'Inner',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a quote continued by a line without its marker': {
+            input: '> Quoted\ncontinued',
+            output: {
+                type: 'quote',
+                source: '> Quoted\ncontinued',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'Quoted\ncontinued',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Quoted\ncontinued',
+                                content: 'Quoted\ncontinued',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a quote ended by a block': {
+            input: '> Quoted\n- One',
+            output: {
+                type: 'fragment',
+                source: '> Quoted\n- One',
+                children: [
+                    {
+                        type: 'quote',
+                        source: '> Quoted',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'Quoted',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Quoted',
+                                        content: 'Quoted',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'list',
+                        source: '- One',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a quote ended by a rule': {
+            input: '> Quoted\n---',
+            output: {
+                type: 'fragment',
+                source: '> Quoted\n---',
+                children: [
+                    {
+                        type: 'quote',
+                        source: '> Quoted',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'Quoted',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Quoted',
+                                        content: 'Quoted',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'rule',
+                        source: '---',
+                    },
+                ],
+            },
+        },
+        'a code block never closed in a quote': {
+            input: '> ```\n> code\n\nAfter',
+            output: {
+                type: 'fragment',
+                source: '> ```\n> code\n\nAfter',
+                children: [
+                    {
+                        type: 'quote',
+                        source: '> ```\n> code',
+                        children: [
+                            {
+                                type: 'codeBlock',
+                                source: '```\ncode',
+                                content: 'code',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'After',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'After',
+                                content: 'After',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'an unordered list': {
+            input: '- One\n- **Two**',
+            output: {
+                type: 'list',
+                source: '- One\n- **Two**',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '- One',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'One',
+                                content: 'One',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '- **Two**',
+                        children: [
+                            {
+                                type: 'bold',
+                                source: '**Two**',
+                                children: {
+                                    type: 'text',
+                                    source: 'Two',
+                                    content: 'Two',
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'lists with different bullets': {
+            input: '- One\n* Two\n+ Three',
+            output: {
+                type: 'fragment',
+                source: '- One\n* Two\n+ Three',
+                children: [
+                    {
+                        type: 'list',
+                        source: '- One',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'list',
+                        source: '* Two',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '* Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'list',
+                        source: '+ Three',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '+ Three',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Three',
+                                        content: 'Three',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'lists with different delimiters': {
+            input: '1. One\n2) Two',
+            output: {
+                type: 'fragment',
+                source: '1. One\n2) Two',
+                children: [
+                    {
+                        type: 'list',
+                        source: '1. One',
+                        ordered: true,
+                        start: 1,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '1. One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'list',
+                        source: '2) Two',
+                        ordered: true,
+                        start: 2,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '2) Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'an ordered list': {
+            input: '3. Three\n4. Four',
+            output: {
+                type: 'list',
+                source: '3. Three\n4. Four',
+                ordered: true,
+                start: 3,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '3. Three',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Three',
+                                content: 'Three',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '4. Four',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Four',
+                                content: 'Four',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a nested list': {
+            input: '- One\n    - Inner\n    - Inner too\n- Two',
+            output: {
+                type: 'list',
+                source: '- One\n    - Inner\n    - Inner too\n- Two',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '- One\n    - Inner\n    - Inner too',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'One',
+                                content: 'One',
+                            },
+                            {
+                                type: 'list',
+                                source: '  - Inner\n  - Inner too',
+                                ordered: false,
+                                tight: true,
+                                items: [
+                                    {
+                                        type: 'listItem',
+                                        source: '  - Inner',
+                                        children: [
+                                            {
+                                                type: 'text',
+                                                source: 'Inner',
+                                                content: 'Inner',
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: 'listItem',
+                                        source: '  - Inner too',
+                                        children: [
+                                            {
+                                                type: 'text',
+                                                source: 'Inner too',
+                                                content: 'Inner too',
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '- Two',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Two',
+                                content: 'Two',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a loose list': {
+            input: '- One\n\n- Two',
+            output: {
+                type: 'list',
+                source: '- One\n\n- Two',
+                ordered: false,
+                tight: false,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '- One',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '- Two',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a loose list item': {
+            input: '- First\n\n  Still first\n- Second',
+            output: {
+                type: 'list',
+                source: '- First\n\n  Still first\n- Second',
+                ordered: false,
+                tight: false,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '- First\n\n  Still first',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'First',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'First',
+                                        content: 'First',
+                                    },
+                                ],
+                            },
+                            {
+                                type: 'paragraph',
+                                source: 'Still first',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Still first',
+                                        content: 'Still first',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '- Second',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'Second',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Second',
+                                        content: 'Second',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a loose list in a tight one': {
+            input: '- One\n  - Inner\n\n  - Inner too',
+            output: {
+                type: 'list',
+                source: '- One\n  - Inner\n\n  - Inner too',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '- One\n  - Inner\n\n  - Inner too',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'One',
+                                content: 'One',
+                            },
+                            {
+                                type: 'list',
+                                source: '- Inner\n\n- Inner too',
+                                ordered: false,
+                                tight: false,
+                                items: [
+                                    {
+                                        type: 'listItem',
+                                        source: '- Inner',
+                                        children: [
+                                            {
+                                                type: 'paragraph',
+                                                source: 'Inner',
+                                                children: [
+                                                    {
+                                                        type: 'text',
+                                                        source: 'Inner',
+                                                        content: 'Inner',
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: 'listItem',
+                                        source: '- Inner too',
+                                        children: [
+                                            {
+                                                type: 'paragraph',
+                                                source: 'Inner too',
+                                                children: [
+                                                    {
+                                                        type: 'text',
+                                                        source: 'Inner too',
+                                                        content: 'Inner too',
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a list item continued on the next line': {
+            input: '- First\ncontinued\n- Second',
+            output: {
+                type: 'list',
+                source: '- First\ncontinued\n- Second',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '- First\ncontinued',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'First\ncontinued',
+                                content: 'First\ncontinued',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '- Second',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Second',
+                                content: 'Second',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'an empty list item': {
+            input: '-\n- Second',
+            output: {
+                type: 'list',
+                source: '-\n- Second',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '-',
+                        children: [],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '- Second',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Second',
+                                content: 'Second',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a list item starting with a blank line': {
+            input: '-\n  First',
+            output: {
+                type: 'list',
+                source: '-\n  First',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '-\n  First',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'First',
+                                content: 'First',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a list item starting with two blank lines': {
+            input: '-\n\n  After',
+            output: {
+                type: 'fragment',
+                source: '-\n\n  After',
+                children: [
+                    {
+                        type: 'list',
+                        source: '-',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '-',
+                                children: [],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        source: '  After',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'After',
+                                content: 'After',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a list item set far from its marker': {
+            input: '-     Far',
+            output: {
+                type: 'list',
+                source: '-     Far',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '-     Far',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Far',
+                                content: 'Far',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'list items indented with tabs': {
+            input: '-\tOne\n\tcontinued\n- Two\n\t- Inner',
+            output: {
+                type: 'list',
+                source: '-\tOne\n\tcontinued\n- Two\n\t- Inner',
+                ordered: false,
+                tight: true,
+                items: [
+                    {
+                        type: 'listItem',
+                        source: '-\tOne\n\tcontinued',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'One\ncontinued',
+                                content: 'One\ncontinued',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'listItem',
+                        source: '- Two\n\t- Inner',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Two',
+                                content: 'Two',
+                            },
+                            {
+                                type: 'list',
+                                source: '  - Inner',
+                                ordered: false,
+                                tight: true,
+                                items: [
+                                    {
+                                        type: 'listItem',
+                                        source: '  - Inner',
+                                        children: [
+                                            {
+                                                type: 'text',
+                                                source: 'Inner',
+                                                content: 'Inner',
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a list after a paragraph': {
+            input: 'Intro\n- One\n- Two',
+            output: {
+                type: 'fragment',
+                source: 'Intro\n- One\n- Two',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'Intro',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Intro',
+                                content: 'Intro',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'list',
+                        source: '- One\n- Two',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                            {
+                                type: 'listItem',
+                                source: '- Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a number in a paragraph as text': {
+            input: 'The year was\n2026. Then came',
+            output: {
+                type: 'text',
+                source: 'The year was\n2026. Then came',
+                content: 'The year was\n2026. Then came',
+            },
+        },
+        'an empty item in a paragraph as text': {
+            input: 'Before\n*\nAfter',
+            output: {
+                type: 'text',
+                source: 'Before\n*\nAfter',
+                content: 'Before\n*\nAfter',
+            },
+        },
+        'an ordered list from any number after a blank line': {
+            input: 'Intro\n\n2. Two',
+            output: {
+                type: 'fragment',
+                source: 'Intro\n\n2. Two',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'Intro',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Intro',
+                                content: 'Intro',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'list',
+                        source: '2. Two',
+                        ordered: true,
+                        start: 2,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '2. Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a list before a paragraph': {
+            input: '- One\n- Two\n\nAfter',
+            output: {
+                type: 'fragment',
+                source: '- One\n- Two\n\nAfter',
+                children: [
+                    {
+                        type: 'list',
+                        source: '- One\n- Two',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                            {
+                                type: 'listItem',
+                                source: '- Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'After',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'After',
+                                content: 'After',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a code block': {
+            input: '```js\nconst a = 1;\n\n**not bold**\n```',
+            output: {
+                type: 'codeBlock',
+                source: '```js\nconst a = 1;\n\n**not bold**\n```',
+                content: 'const a = 1;\n\n**not bold**',
+                language: 'js',
+            },
+        },
+        'a code block without a language': {
+            input: '```\ncode\n```',
+            output: {
+                type: 'codeBlock',
+                source: '```\ncode\n```',
+                content: 'code',
+            },
+        },
+        'a code block with tildes': {
+            input: '~~~ ts extra\ncode\n~~~~',
+            output: {
+                type: 'codeBlock',
+                source: '~~~ ts extra\ncode\n~~~~',
+                content: 'code',
+                language: 'ts',
+            },
+        },
+        'a code block with an escaped language': {
+            input: '```j\\s\ncode\n```',
+            output: {
+                type: 'codeBlock',
+                source: '```j\\s\ncode\n```',
+                content: 'code',
+                language: 'js',
+            },
+        },
+        'an indented code block fence': {
+            input: '  ```\n  indented\n    more\n  ```',
+            output: {
+                type: 'codeBlock',
+                source: '  ```\n  indented\n    more\n  ```',
+                content: 'indented\n  more',
+            },
+        },
+        'a code block never closed': {
+            input: '```js\ncode\nmore',
+            output: {
+                type: 'codeBlock',
+                source: '```js\ncode\nmore',
+                content: 'code\nmore',
+                language: 'js',
+            },
+        },
+        'a code block with a closing fence too indented': {
+            input: '```\ncode\n    ```\n```',
+            output: {
+                type: 'codeBlock',
+                source: '```\ncode\n    ```\n```',
+                content: 'code\n    ```',
+            },
+        },
+        'a quote ended by a line after its code': {
+            input: '> ```\n> code\nAfter',
+            output: {
+                type: 'fragment',
+                source: '> ```\n> code\nAfter',
+                children: [
+                    {
+                        type: 'quote',
+                        source: '> ```\n> code',
+                        children: [
+                            {
+                                type: 'codeBlock',
+                                source: '```\ncode',
+                                content: 'code',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'After',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'After',
+                                content: 'After',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a quote ended by a line after its closed code block': {
+            input: '> ```\n> code\n> ```\nAfter',
+            output: {
+                type: 'fragment',
+                source: '> ```\n> code\n> ```\nAfter',
+                children: [
+                    {
+                        type: 'quote',
+                        source: '> ```\n> code\n> ```',
+                        children: [
+                            {
+                                type: 'codeBlock',
+                                source: '```\ncode\n```',
+                                content: 'code',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'After',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'After',
+                                content: 'After',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a list item ended by a line after its code': {
+            input: '- ~~~\n  code\nAfter',
+            output: {
+                type: 'fragment',
+                source: '- ~~~\n  code\nAfter',
+                children: [
+                    {
+                        type: 'list',
+                        source: '- ~~~\n  code',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- ~~~\n  code',
+                                children: [
+                                    {
+                                        type: 'codeBlock',
+                                        source: '~~~\ncode',
+                                        content: 'code',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'After',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'After',
+                                content: 'After',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'triple backticks within a line as text': {
+            input: '```code``` here',
+            output: {
+                type: 'text',
+                source: '```code``` here',
+                content: '```code``` here',
+            },
+        },
+        rules: {
+            input: 'Above\n\n---\n\n***\n\n___\n\n- - -\n\nBelow',
+            output: {
+                type: 'fragment',
+                source: 'Above\n\n---\n\n***\n\n___\n\n- - -\n\nBelow',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'Above',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Above',
+                                content: 'Above',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'rule',
+                        source: '---',
+                    },
+                    {
+                        type: 'rule',
+                        source: '***',
+                    },
+                    {
+                        type: 'rule',
+                        source: '___',
+                    },
+                    {
+                        type: 'rule',
+                        source: '- - -',
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'Below',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Below',
+                                content: 'Below',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'paragraphs between blocks without their indentation': {
+            input: '# Title\n\n   Indented\n  lines  ',
+            output: {
+                type: 'fragment',
+                source: '# Title\n\n   Indented\n  lines  ',
+                children: [
+                    {
+                        type: 'heading',
+                        source: '# Title',
+                        level: 1,
+                        children: {
+                            type: 'text',
+                            source: 'Title',
+                            content: 'Title',
+                        },
+                    },
+                    {
+                        type: 'paragraph',
+                        source: '   Indented\n  lines  ',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Indented\nlines',
+                                content: 'Indented\nlines',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'blocks with different newlines': {
+            input: '# Title\r\n- One\r- Two\n\nEnd',
+            output: {
+                type: 'fragment',
+                source: '# Title\r\n- One\r- Two\n\nEnd',
+                children: [
+                    {
+                        type: 'heading',
+                        source: '# Title',
+                        level: 1,
+                        children: {
+                            type: 'text',
+                            source: 'Title',
+                            content: 'Title',
+                        },
+                    },
+                    {
+                        type: 'list',
+                        source: '- One\r- Two',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                            {
+                                type: 'listItem',
+                                source: '- Two',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Two',
+                                        content: 'Two',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'End',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'End',
+                                content: 'End',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a document with every block': {
+            input: 'Hi\n\n# Title\n\n- One\n\n> Quoted\n\n---\n\n```\ncode\n```\n\nBye',
+            output: {
+                type: 'fragment',
+                source: 'Hi\n\n# Title\n\n- One\n\n> Quoted\n\n---\n\n```\ncode\n```\n\nBye',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: 'Hi',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Hi',
+                                content: 'Hi',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'heading',
+                        source: '# Title',
+                        level: 1,
+                        children: {
+                            type: 'text',
+                            source: 'Title',
+                            content: 'Title',
+                        },
+                    },
+                    {
+                        type: 'list',
+                        source: '- One',
+                        ordered: false,
+                        tight: true,
+                        items: [
+                            {
+                                type: 'listItem',
+                                source: '- One',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'One',
+                                        content: 'One',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'quote',
+                        source: '> Quoted',
+                        children: [
+                            {
+                                type: 'paragraph',
+                                source: 'Quoted',
+                                children: [
+                                    {
+                                        type: 'text',
+                                        source: 'Quoted',
+                                        content: 'Quoted',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: 'rule',
+                        source: '---',
+                    },
+                    {
+                        type: 'codeBlock',
+                        source: '```\ncode\n```',
+                        content: 'code',
+                    },
+                    {
+                        type: 'paragraph',
+                        source: 'Bye',
+                        children: [
+                            {
+                                type: 'text',
+                                source: 'Bye',
+                                content: 'Bye',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
     }))('should parse %s', (_, {input, output}) => {
         expect(parse(input)).toEqual(output);
+    });
+
+    it('should parse only inline formatting and paragraphs when blocks are off', () => {
+        expect(parse('# Title\n\n- **One**', {blocks: false})).toEqual({
+            type: 'fragment',
+            source: '# Title\n\n- **One**',
+            children: [
+                {
+                    type: 'paragraph',
+                    source: '# Title',
+                    children: [
+                        {
+                            type: 'text',
+                            source: '# Title',
+                            content: '# Title',
+                        },
+                    ],
+                },
+                {
+                    type: 'paragraph',
+                    source: '- **One**',
+                    children: [
+                        {
+                            type: 'text',
+                            source: '- ',
+                            content: '- ',
+                        },
+                        {
+                            type: 'bold',
+                            source: '**One**',
+                            children: {
+                                type: 'text',
+                                source: 'One',
+                                content: 'One',
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
     });
 
     it.each([
