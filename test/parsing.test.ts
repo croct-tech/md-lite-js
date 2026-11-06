@@ -3109,7 +3109,7 @@ describe('A Markdown parser function', () => {
     });
 
     it('should read nodes nested too deep as text', () => {
-        let node = parse(`${'['.repeat(101)}a${'](u)'.repeat(101)}`);
+        let node = parse(`${'['.repeat(101)}\\*a${'](u)'.repeat(101)}`);
         let depth = 0;
 
         while (node.type === 'link') {
@@ -3121,8 +3121,8 @@ describe('A Markdown parser function', () => {
 
         expect(node).toEqual({
             type: 'text',
-            source: '[a](u)',
-            content: '[a](u)',
+            source: '[\\*a](u)',
+            content: '[*a](u)',
         });
     });
 

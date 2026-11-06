@@ -267,7 +267,7 @@ class MarkdownParser {
 
         let node: MarkdownNode = {
             type: 'text',
-            content: source,
+            content: unescape(source),
             source: source,
         };
 
