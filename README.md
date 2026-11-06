@@ -10,7 +10,7 @@
 <p align="center">
     <a href="https://www.npmjs.com/package/@croct/md-lite"><img alt="Version" src="https://img.shields.io/npm/v/@croct/md-lite"/></a>
     <a href="https://github.com/croct-tech/md-lite-js/actions/workflows/validate-branch.yaml"><img alt="Build" src="https://github.com/croct-tech/md-lite-js/actions/workflows/validate-branch.yaml/badge.svg" /></a>
-    <a href="https://bundlephobia.com/package/@croct/md-lite"><img alt="Gzipped bundle size" src="https://badgen.net/bundlephobia/minzip/@croct/md-lite"></a>
+    <a href="https://bundlejs.com/?q=@croct/md-lite"><img alt="Gzipped bundle size" src="https://deno.bundlejs.com/badge?q=@croct/md-lite"/></a>
     <br />
     <br />
     <a href="https://github.com/croct-tech/md-lite-js/releases">📦 Releases</a>

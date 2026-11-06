@@ -1,5 +1,6 @@
-import {MarkdownNode} from '../src/ast';
-import {MarkdownRenderer, render, VisitedMarkdownNode} from '../src';
+import type {MarkdownNode} from '../src/ast';
+import type {MarkdownRenderer, VisitedMarkdownNode} from '../src';
+import {render} from '../src';
 
 describe('A Markdown render function', () => {
     class TestRenderer implements MarkdownRenderer<MarkdownNode> {
