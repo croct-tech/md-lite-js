@@ -33,10 +33,11 @@ type MarkdownNodeMap = {
     quote: {
         children: MarkdownNode[],
     },
-    list: {
-        ordered: boolean,
-        start?: number,
-        tight: boolean,
+    orderedList: {
+        start: number,
+        items: Array<MarkdownNode<'listItem'>>,
+    },
+    unorderedList: {
         items: Array<MarkdownNode<'listItem'>>,
     },
     listItem: {

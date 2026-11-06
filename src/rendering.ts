@@ -36,10 +36,11 @@ type VisitedMarkdownNodeMap<C> = {
     quote: {
         children: C[],
     },
-    list: {
-        ordered: boolean,
-        start?: number,
-        tight: boolean,
+    orderedList: {
+        start: number,
+        items: C[],
+    },
+    unorderedList: {
         items: C[],
     },
     listItem: {
@@ -80,7 +81,8 @@ export interface MarkdownRenderer<T> {
      */
     heading?(node: VisitedMarkdownNode<T, 'heading'>): T;
     quote?(node: VisitedMarkdownNode<T, 'quote'>): T;
-    list?(node: VisitedMarkdownNode<T, 'list'>): T;
+    orderedList?(node: VisitedMarkdownNode<T, 'orderedList'>): T;
+    unorderedList?(node: VisitedMarkdownNode<T, 'unorderedList'>): T;
     listItem?(node: VisitedMarkdownNode<T, 'listItem'>): T;
     codeBlock?(node: VisitedMarkdownNode<T, 'codeBlock'>): T;
     rule?(node: VisitedMarkdownNode<T, 'rule'>): T;
@@ -195,16 +197,26 @@ function visit<T>(root: MarkdownNode, visitor: MarkdownRenderer<T>): T {
                     source: node.source,
                 });
 
-            case 'list':
-                if (visitor.list === undefined) {
+            case 'orderedList':
+                if (visitor.orderedList === undefined) {
                     return visitText(node);
                 }
 
-                return visitor.list({
+                return visitor.orderedList({
                     type: node.type,
-                    ordered: node.ordered,
-                    ...(node.start !== undefined ? {start: node.start} : {}),
-                    tight: node.tight,
+                    start: node.start,
+                    items: node.items.map(item => visitNode(item)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'unorderedList':
+                if (visitor.unorderedList === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.unorderedList({
+                    type: node.type,
                     items: node.items.map(item => visitNode(item)),
                     index: index++,
                     source: node.source,

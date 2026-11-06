@@ -41,30 +41,68 @@ export function unescape(input: string): string {
     return text;
 }
 
-class MismatchError extends Error {
-    public constructor() {
-        super('Mismatched token');
+/**
+ * How deep nodes nest at most, past which they are read as text, which keeps deep nesting from
+ * exhausting the stack.
+ */
+const MAX_NESTING = 100;
 
-        Object.setPrototypeOf(this, MismatchError.prototype);
-    }
-}
+/**
+ * Where each character of a text is in the Markdown it was read from.
+ */
+type SourceMap = {
+    markdown: string,
+    positions: number[],
+};
 
 class MarkdownParser {
     private readonly chars: string[];
 
+    private readonly map: SourceMap;
+
+    /**
+     * Where each node ends, by the position it starts at.
+     */
+    private readonly ends: Map<number, number>;
+
     private index = 0;
+
+    private depth = 0;
 
     private static readonly NEWLINE = ['\r\n', '\r', '\n'];
 
     private static readonly NEW_PARAGRAPH = MarkdownParser.NEWLINE
-        .flatMap(prefix => MarkdownParser.NEWLINE.map(suffix => prefix + suffix));
+        .flatMap(prefix => MarkdownParser.NEWLINE.map(suffix => prefix + suffix))
+        // A carriage return followed by a line feed is a single newline
+        .filter(newlines => newlines !== '\r\n');
 
-    private constructor(input: string) {
+    /**
+     * The texts that end the content of a node, which may hold other nodes.
+     */
+    private static readonly NODE_ENDINGS = ['*', '**', '_', '~~', ']'];
+
+    /**
+     * The texts that end the plain parts of a node, like the content of inline code.
+     */
+    private static readonly TEXT_ENDINGS = [['`'], ['``'], [']'], [')'], [')', '"'], ['"']];
+
+    /**
+     * The characters that may start a node, end what is read or escape another character.
+     */
+    private static readonly SPECIAL_CHARS = '*_~`![])"\\\r\n';
+
+    private constructor(input: string, map: SourceMap|null) {
         this.chars = [...input];
+        this.map = map ?? MarkdownParser.createSourceMap(input, this.chars);
+        this.ends = MarkdownParser.findEnds(this.chars);
     }
 
-    public static parse(input: string): MarkdownNode {
-        return new MarkdownParser(input).parseNext();
+    /**
+     * Parses the given text, whose nodes have their source in the Markdown the map gives, if any,
+     * like a paragraph of a quote, which reads with the quote's markers.
+     */
+    public static parse(input: string, map: SourceMap|null = null): MarkdownNode {
+        return new MarkdownParser(input, map).parseNext();
     }
 
     private parseNext(end: string = ''): MarkdownNode {
@@ -82,10 +120,21 @@ class MarkdownParser {
         let textStartIndex = this.index;
 
         while (!this.done) {
-            const escapedText = this.parseText('');
+            const char = this.current;
 
-            if (escapedText !== '') {
-                text += escapedText;
+            // A character that can't start a node or end what is read is always text
+            if (!MarkdownParser.SPECIAL_CHARS.includes(char)) {
+                text += char;
+
+                this.advance();
+
+                continue;
+            }
+
+            if (char === '\\' && this.index + 1 < this.length) {
+                text += this.chars[this.index + 1];
+
+                this.advance(2);
 
                 continue;
             }
@@ -114,13 +163,13 @@ class MarkdownParser {
                         root.children = [paragraph];
                     }
 
-                    paragraph.source = this.getSlice(paragraphStartIndex, paragraphEndIndex);
+                    paragraph.source = this.getSource(paragraphStartIndex, paragraphEndIndex);
 
                     if (text !== '') {
                         paragraph.children.push({
                             type: 'text',
                             content: text,
-                            source: this.getSlice(textStartIndex, paragraphEndIndex),
+                            source: this.getSource(textStartIndex, paragraphEndIndex),
                         });
 
                         text = '';
@@ -140,21 +189,9 @@ class MarkdownParser {
             }
 
             const nodeStartIndex = this.index;
-
-            let node: MarkdownNode|null = null;
-
-            try {
-                node = this.parseCurrent();
-            } catch (error) {
-                if (!(error instanceof MismatchError)) {
-                    /* istanbul ignore next */
-                    throw error;
-                }
-            }
+            const node = this.parseCurrent();
 
             if (node === null) {
-                this.seek(nodeStartIndex);
-
                 text += this.current;
 
                 this.advance();
@@ -172,7 +209,7 @@ class MarkdownParser {
                 parent.children.push({
                     type: 'text',
                     content: text,
-                    source: this.getSlice(textStartIndex, nodeStartIndex),
+                    source: this.getSource(textStartIndex, nodeStartIndex),
                 });
             }
 
@@ -193,7 +230,7 @@ class MarkdownParser {
             parent.children.push({
                 type: 'text',
                 content: text,
-                source: this.getSlice(textStartIndex, this.index),
+                source: this.getSource(textStartIndex, this.index),
             });
         }
 
@@ -203,7 +240,7 @@ class MarkdownParser {
             if (lastNode.children.length === 0) {
                 root.children.pop();
             } else {
-                lastNode.source = this.getSlice(paragraphStartIndex, this.index);
+                lastNode.source = this.getSource(paragraphStartIndex, this.index);
             }
         }
 
@@ -211,14 +248,44 @@ class MarkdownParser {
             return root.children[0];
         }
 
-        root.source = this.getSlice(startIndex, this.index);
+        root.source = this.getSource(startIndex, this.index);
 
         return root;
     }
 
     private parseCurrent(): MarkdownNode|null {
-        const char = this.lookAhead();
-        const startIndex = this.index;
+        const end = this.ends.get(this.index);
+
+        if (end === undefined) {
+            return null;
+        }
+
+        const source = this.getSource(this.index, end);
+
+        let node: MarkdownNode = {
+            type: 'text',
+            content: source,
+            source: source,
+        };
+
+        if (this.depth < MAX_NESTING) {
+            this.depth++;
+
+            node = this.parseNode(source);
+
+            this.depth--;
+        }
+
+        this.seek(end);
+
+        return node;
+    }
+
+    /**
+     * Parses the node at the current position, which is known to end, with the given source.
+     */
+    private parseNode(source: string): MarkdownNode {
+        const char = this.current;
 
         switch (char) {
             case '*':
@@ -227,108 +294,68 @@ class MarkdownParser {
 
                 this.advance(delimiter.length);
 
-                const children = this.parseNext(delimiter);
-
-                this.match(delimiter);
-
                 return {
                     type: delimiter.length === 1 ? 'italic' : 'bold',
-                    children: children,
-                    source: this.getSlice(startIndex, this.index),
+                    children: this.parseNext(delimiter),
+                    source: source,
                 };
             }
 
-            case '~': {
-                this.match('~~');
-
-                const children = this.parseNext('~~');
-
-                this.match('~~');
+            case '~':
+                this.advance(2);
 
                 return {
                     type: 'strike',
-                    children: children,
-                    source: this.getSlice(startIndex, this.index),
+                    children: this.parseNext('~~'),
+                    source: source,
                 };
-            }
 
             case '`': {
-                if (this.matches('```')) {
-                    return null;
-                }
-
                 const delimiter = this.matches('``') ? '``' : '`';
 
-                this.match(delimiter);
-
-                const content = this.parseText(delimiter).trim();
-
-                if (this.matches('```')) {
-                    return null;
-                }
-
-                this.match(delimiter);
+                this.advance(delimiter.length);
 
                 return {
                     type: 'code',
-                    content: content,
-                    source: this.getSlice(startIndex, this.index),
+                    content: this.parseText(delimiter).trim(),
+                    source: source,
                 };
             }
 
             case '!': {
-                this.advance();
-
-                this.match('[');
+                this.advance(2);
 
                 const alt = this.parseText(']');
 
-                this.match('](');
-
-                const src = this.parseText(')');
-
-                this.match(')');
+                this.advance(2);
 
                 return {
                     type: 'image',
-                    src: src,
+                    src: this.parseText(')'),
                     alt: alt,
-                    source: this.getSlice(startIndex, this.index),
+                    source: source,
                 };
             }
 
-            case '[': {
+            default: {
+                // A link, as no other node starts with another character
                 this.advance();
 
                 const label = this.parseNext(']');
 
-                this.match('](');
+                this.advance(2);
 
                 const href = this.parseText(')', '"');
-
-                let title: string|undefined;
-
-                if (this.matches('"')) {
-                    this.match('"');
-
-                    title = this.parseText('"');
-
-                    this.match('"');
-                }
-
-                this.match(')');
+                const title = this.match('"') ? this.parseText('"') : undefined;
 
                 return {
                     type: 'link',
                     href: href.trim(),
                     ...(title !== undefined ? {title: title} : {}),
                     children: label,
-                    source: this.getSlice(startIndex, this.index),
+                    source: source,
                 };
             }
-
-            default:
-                return null;
         }
     }
 
@@ -336,21 +363,24 @@ class MarkdownParser {
         let text = '';
 
         while (!this.done) {
-            if (this.current === '\\' && this.index + 1 < this.length) {
-                this.advance();
+            const char = this.current;
 
-                text += this.current;
+            if (char === '\\' && this.index + 1 < this.length) {
+                text += this.chars[this.index + 1];
 
-                this.advance();
+                this.advance(2);
 
                 continue;
             }
 
-            if (end.some(token => (token === '' || this.matches(token))) || this.matches(...MarkdownParser.NEWLINE)) {
+            if (
+                MarkdownParser.SPECIAL_CHARS.includes(char)
+                && (this.matches(...end) || this.matches(...MarkdownParser.NEWLINE))
+            ) {
                 break;
             }
 
-            text += this.current;
+            text += char;
 
             this.advance();
         }
@@ -379,38 +409,243 @@ class MarkdownParser {
     }
 
     private matches(...lookahead: string[]): boolean {
-        return lookahead.some(substring => this.lookAhead(substring.length) === substring);
-    }
-
-    private match(...lookahead: string[]): void {
         for (const substring of lookahead) {
-            if (this.lookAhead(substring.length) === substring) {
-                this.advance(substring.length);
-
-                return;
+            if (MarkdownParser.matchesAt(this.chars, this.index, substring)) {
+                return true;
             }
         }
 
-        throw new MismatchError();
+        return false;
     }
 
-    private lookAhead(length: number = 1): string {
-        if (length === 1) {
-            return this.current;
+    /**
+     * Moves past the given text when it comes next, and tells whether it does.
+     */
+    private match(substring: string): boolean {
+        if (!this.matches(substring)) {
+            return false;
         }
 
-        return this.getSlice(this.index, this.index + length);
+        this.advance(substring.length);
+
+        return true;
     }
 
-    private getSlice(start: number, end: number): string {
-        return this.chars
-            .slice(start, end)
-            .join('');
+    private getSource(start: number, end: number): string {
+        if (start === end) {
+            return '';
+        }
+
+        const {markdown, positions} = this.map;
+
+        return markdown.slice(positions[start], positions[end - 1] + this.chars[end - 1].length);
+    }
+
+    /**
+     * Returns the map of a text read from itself.
+     */
+    private static createSourceMap(input: string, chars: string[]): SourceMap {
+        const positions: number[] = [];
+
+        let position = 0;
+
+        for (const char of chars) {
+            positions.push(position);
+            position += char.length;
+        }
+
+        return {
+            markdown: input,
+            positions: positions,
+        };
+    }
+
+    /**
+     * Finds where each node ends, from the last position to the first.
+     *
+     * Where a node ends depends only on what comes after it, so each one is found by looking up
+     * where the parts after it end, rather than by reading them again. This keeps unclosed
+     * delimiters, like `[[[`, from being read over and over, and the parser from trying nodes
+     * that never end.
+     */
+    private static findEnds(chars: string[]): Map<number, number> {
+        const {length} = chars;
+
+        // Reading stops and nodes start only at special characters, so each position has the slot
+        // of the first of them from it on, counting from the end, which has slot 0
+        const slots = new Array<number>(length + 1);
+        const positions = [length];
+
+        slots[length] = 0;
+
+        for (let index = length - 1; index >= 0; index--) {
+            if (MarkdownParser.SPECIAL_CHARS.includes(chars[index])) {
+                slots[index] = positions.length;
+                positions.push(index);
+            } else {
+                slots[index] = slots[index + 1];
+            }
+        }
+
+        // Where reading from each slot stops, for each of the texts that end what is read
+        const nodeTables = MarkdownParser.NODE_ENDINGS.map(() => new Array<number>(positions.length).fill(length));
+        const textTables = MarkdownParser.TEXT_ENDINGS.map(() => new Array<number>(positions.length).fill(length));
+        const nodeStops: Record<string, number[]> = {};
+        const textStops: Record<string, number[]> = {};
+
+        MarkdownParser.NODE_ENDINGS.forEach((ending, position) => {
+            nodeStops[ending] = nodeTables[position];
+        });
+
+        MarkdownParser.TEXT_ENDINGS.forEach((endings, position) => {
+            textStops[endings.join('')] = textTables[position];
+        });
+
+        const findNodeStop = (ending: string, index: number): number => nodeStops[ending][slots[index]];
+        const findTextStop = (endings: string, index: number): number => textStops[endings][slots[index]];
+
+        const matches = (index: number, substring: string): boolean => (
+            MarkdownParser.matchesAt(chars, index, substring)
+        );
+
+        // Returns the position past the given text when it is at the given position, or -1
+        const close = (index: number, substring: string): number => (
+            matches(index, substring) ? index + substring.length : -1
+        );
+
+        const findEnd = (index: number): number => {
+            const char = chars[index];
+
+            switch (char) {
+                case '*':
+                case '_': {
+                    const delimiter = matches(index, '**') ? '**' : char;
+
+                    return close(findNodeStop(delimiter, index + delimiter.length), delimiter);
+                }
+
+                case '~':
+                    return matches(index, '~~') ? close(findNodeStop('~~', index + 2), '~~') : -1;
+
+                case '`': {
+                    if (matches(index, '```')) {
+                        return -1;
+                    }
+
+                    const delimiter = matches(index, '``') ? '``' : '`';
+                    const end = findTextStop(delimiter, index + delimiter.length);
+
+                    return matches(end, '```') ? -1 : close(end, delimiter);
+                }
+
+                case '!': {
+                    const src = matches(index + 1, '[') ? close(findTextStop(']', index + 2), '](') : -1;
+
+                    return src < 0 ? -1 : close(findTextStop(')', src), ')');
+                }
+
+                case '[': {
+                    const href = close(findNodeStop(']', index + 1), '](');
+
+                    if (href < 0) {
+                        return -1;
+                    }
+
+                    const end = findTextStop(')"', href);
+
+                    if (!matches(end, '"')) {
+                        return close(end, ')');
+                    }
+
+                    const title = close(findTextStop('"', end + 1), '"');
+
+                    return title < 0 ? -1 : close(title, ')');
+                }
+
+                default:
+                    return -1;
+            }
+        };
+
+        const ends = new Map<number, number>();
+
+        for (let slot = 1; slot < positions.length; slot++) {
+            const index = positions[slot];
+            const char = chars[index];
+
+            // An escaped character is read along with the backslash, as text
+            const escaped = char === '\\' && index + 1 < length;
+            const newline = char === '\r' || char === '\n';
+
+            MarkdownParser.TEXT_ENDINGS.forEach((endings, position) => {
+                const stops = textTables[position];
+
+                if (escaped) {
+                    stops[slot] = stops[slots[index + 2]];
+                } else if (newline || endings.some(ending => matches(index, ending))) {
+                    stops[slot] = index;
+                } else {
+                    stops[slot] = stops[slots[index + 1]];
+                }
+            });
+
+            const end = findEnd(index);
+
+            if (end >= 0) {
+                ends.set(index, end);
+            }
+
+            MarkdownParser.NODE_ENDINGS.forEach((ending, position) => {
+                const stops = nodeTables[position];
+
+                if (escaped) {
+                    stops[slot] = stops[slots[index + 2]];
+                } else if (newline || matches(index, ending)) {
+                    stops[slot] = index;
+                } else {
+                    // A node is read as a whole, so what ends it can't end what holds it
+                    stops[slot] = stops[slots[end < 0 ? index + 1 : end]];
+                }
+            });
+        }
+
+        return ends;
+    }
+
+    private static matchesAt(chars: string[], index: number, substring: string): boolean {
+        for (let offset = 0; offset < substring.length; offset++) {
+            if (chars[index + offset] !== substring[offset]) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
 type Line = {
+    /**
+     * The text of the line, past the markers of what holds it, like those of a quote.
+     */
     content: string,
+
+    /**
+     * Where the content starts in the input, past its padding.
+     */
+    start: number,
+
+    /**
+     * The spaces the content starts with that are not in the input, as they are what is left of
+     * a tab that the markers end within.
+     */
+    padding: number,
+
+    /**
+     * Where the text of the content starts, past the spaces and tabs it starts with, which is
+     * the length of the content when the line is blank.
+     */
+    text: number,
+
     newline: string,
 };
 
@@ -419,16 +654,47 @@ type ListMarker = {
      * The bullet, or the delimiter after the number, which the items of the same list share.
      */
     kind: string,
-    ordered: boolean,
-    start: number,
+
+    /**
+     * The number of an ordered item, or null for a bullet.
+     */
+    start: number|null,
+
+    /**
+     * The column the content starts at, which the lines of the item are indented to.
+     */
     offset: number,
-    content: string,
+
+    content: Line,
 };
 
 type ListSibling = {
-    index: number,
     marker: ListMarker,
     separated: boolean,
+};
+
+type Fence = {
+    delimiter: string,
+    indent: number,
+    info: string,
+};
+
+/**
+ * What a line starts, as told by its first character past the indentation.
+ */
+type Block = {type: 'blank' | 'text' | 'rule'}
+    | {type: 'heading', level: number, content: Line}
+    | {type: 'quote', content: Line}
+    | {type: 'fence', fence: Fence}
+    | {type: 'item', marker: ListMarker};
+
+/**
+ * How the lines of a block read so far end, which tells whether a line without the block's
+ * markers continues it.
+ */
+type Flow = {
+    readonly paragraph: boolean,
+    readonly fence: Fence|null,
 };
 
 type ListItem = {
@@ -444,25 +710,26 @@ type Container = {
 class BlockParser {
     private static readonly TAB_SIZE = 4;
 
-    private static readonly BLANK = /^[ \t]*$/;
+    private static readonly SPACE = ' \t';
 
-    private static readonly HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
+    private static readonly DIGITS = '0123456789';
 
-    private static readonly UNDERLINE = /^ {0,3}(=+|-+)[ \t]*$/;
+    /**
+     * How the lines of a block end before any is read.
+     */
+    private static readonly START: Flow = {
+        paragraph: false,
+        fence: null,
+    };
 
-    private static readonly RULE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
-
-    private static readonly QUOTE = /^ {0,3}>/;
-
-    private static readonly EMPTY_QUOTE = /^ {0,3}>[ \t]*$/;
-
-    private static readonly FENCE = /^( {0,3})(?:(`{3,})([^`]*)|(~{3,})(.*))$/;
-
-    private static readonly CLOSING_FENCE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
-
-    private static readonly LIST_ITEM = /^( {0,3})([-*+]|\d{1,9}[.)])(?:([ \t]+)(.*))?$/;
+    private readonly markdown: string;
 
     private readonly lines: Line[];
+
+    /**
+     * How many blocks hold the lines.
+     */
+    private readonly depth: number;
 
     private index = 0;
 
@@ -471,12 +738,14 @@ class BlockParser {
      */
     private separated = false;
 
-    private constructor(lines: Line[]) {
+    private constructor(markdown: string, lines: Line[], depth = 0) {
+        this.markdown = markdown;
         this.lines = lines;
+        this.depth = depth;
     }
 
     public static parse(input: string): MarkdownNode {
-        const nodes = new BlockParser(BlockParser.split(input)).parseBlocks();
+        const nodes = new BlockParser(input, BlockParser.split(input)).parseBlocks();
 
         if (nodes === null) {
             // Without blocks, the input parses exactly as it does when blocks are not parsed
@@ -497,16 +766,27 @@ class BlockParser {
     /**
      * Parses what a block holds, like the lines of a quote, whose text always reads as paragraphs.
      */
-    private static parseContent(lines: Line[]): Container {
-        const parser = new BlockParser(lines);
+    private parseContent(lines: Line[]): Container {
+        if (this.depth === MAX_NESTING) {
+            return {
+                nodes: this.parseParagraphs(lines),
+                separated: false,
+            };
+        }
+
+        const parser = new BlockParser(this.markdown, lines, this.depth + 1);
         const nodes = parser.parseBlocks();
 
         return {
-            nodes: nodes ?? BlockParser.parseParagraphs(lines),
+            nodes: nodes ?? this.parseParagraphs(lines),
             separated: parser.separated,
         };
     }
 
+    /**
+     * Parses the blocks the lines hold, or returns null when they hold none, leaving the text
+     * to be parsed as paragraphs.
+     */
     private parseBlocks(): MarkdownNode[]|null {
         const nodes: MarkdownNode[] = [];
         const text: Line[] = [];
@@ -517,8 +797,9 @@ class BlockParser {
 
         while (!this.done) {
             const line = this.current;
+            const block = BlockParser.classify(line);
 
-            if (BlockParser.BLANK.test(line.content)) {
+            if (block.type === 'blank') {
                 blank = read;
 
                 text.push(line);
@@ -536,10 +817,10 @@ class BlockParser {
             read = true;
 
             // A paragraph is open while the line before is part of it
-            const open = text.length > 0 && !BlockParser.BLANK.test(text[text.length - 1].content);
-            const block = (open ? this.parseUnderlinedHeading(text) : null) ?? this.parseBlock(open);
+            const open = text.length > 0 && !BlockParser.isBlankLine(text[text.length - 1]);
+            const node = (open ? this.parseUnderlinedHeading(text) : null) ?? this.parseBlock(block, open);
 
-            if (block === null) {
+            if (node === null) {
                 text.push(line);
 
                 this.advance();
@@ -547,34 +828,38 @@ class BlockParser {
                 continue;
             }
 
-            nodes.push(...BlockParser.parseParagraphs(text.splice(0)), block);
+            nodes.push(...this.parseParagraphs(text.splice(0)), node);
 
             found = true;
         }
 
-        nodes.push(...BlockParser.parseParagraphs(text));
+        if (!found) {
+            return null;
+        }
 
-        return found ? nodes : null;
+        nodes.push(...this.parseParagraphs(text));
+
+        return nodes;
     }
 
-    private static parseParagraphs(lines: Line[]): MarkdownNode[] {
+    private parseParagraphs(lines: Line[]): MarkdownNode[] {
         const paragraphs: MarkdownNode[] = [];
 
         let start = 0;
 
         for (let index = 0; index <= lines.length; index++) {
-            if (index < lines.length && !BlockParser.BLANK.test(lines[index].content)) {
+            if (index < lines.length && !BlockParser.isBlankLine(lines[index])) {
                 continue;
             }
 
             if (index > start) {
                 const paragraph = lines.slice(start, index);
-                const node = MarkdownParser.parse(BlockParser.trim(paragraph));
+                const node = this.parseInline(paragraph);
 
                 paragraphs.push({
                     type: 'paragraph',
                     children: node.type === 'fragment' ? node.children : [node],
-                    source: BlockParser.join(paragraph),
+                    source: this.getSource(paragraph[0], paragraph[paragraph.length - 1]),
                 });
             }
 
@@ -584,157 +869,131 @@ class BlockParser {
         return paragraphs;
     }
 
-    private parseBlock(interrupting: boolean): MarkdownNode|null {
-        const line = this.current.content;
+    private parseBlock(block: Block, interrupting: boolean): MarkdownNode|null {
+        const source = this.getSource(this.current);
 
-        if (BlockParser.RULE.test(line)) {
-            this.advance();
+        switch (block.type) {
+            case 'rule':
+                this.advance();
 
-            return {
-                type: 'rule',
-                source: line,
-            };
+                return {
+                    type: 'rule',
+                    source: source,
+                };
+
+            case 'heading':
+                this.advance();
+
+                return {
+                    type: 'heading',
+                    level: block.level,
+                    children: this.parseInline([block.content]),
+                    source: source,
+                };
+
+            case 'quote':
+                return this.parseQuote();
+
+            case 'fence':
+                return this.parseCodeBlock(block.fence);
+
+            case 'item':
+                return this.parseList(block.marker, interrupting);
+
+            default:
+                return null;
         }
-
-        const heading = BlockParser.HEADING.exec(line);
-
-        if (heading !== null) {
-            this.advance();
-
-            return {
-                type: 'heading',
-                level: heading[1].length,
-                children: MarkdownParser.parse(heading[2] ?? ''),
-                source: line,
-            };
-        }
-
-        if (BlockParser.QUOTE.test(line)) {
-            return this.parseQuote();
-        }
-
-        return this.parseCodeBlock() ?? this.parseList(interrupting);
     }
 
     /**
      * Parses the paragraph that ends the given text as a heading, when underlined by the current line.
      */
     private parseUnderlinedHeading(text: Line[]): MarkdownNode<'heading'>|null {
-        const underline = BlockParser.UNDERLINE.exec(this.current.content);
+        const level = BlockParser.readUnderline(this.current.content);
 
-        if (underline === null) {
+        if (level === null) {
             return null;
         }
 
         let start = text.length;
 
-        while (start > 0 && !BlockParser.BLANK.test(text[start - 1].content)) {
+        while (start > 0 && !BlockParser.isBlankLine(text[start - 1])) {
             start--;
         }
 
         const lines = text.splice(start);
-
-        lines.push(this.current);
+        const underline = this.current;
 
         this.advance();
 
         return {
             type: 'heading',
-            level: underline[1][0] === '=' ? 1 : 2,
-            children: MarkdownParser.parse(BlockParser.trim(lines.slice(0, -1))),
-            source: BlockParser.join(lines),
+            level: level,
+            children: this.parseInline(lines),
+            source: this.getSource(lines[0], underline),
         };
     }
 
     private parseQuote(): MarkdownNode<'quote'> {
         const start = this.index;
         const lines: Line[] = [];
+        let flow = BlockParser.START;
 
         while (!this.done) {
-            const {content, newline} = this.current;
-            const marker = BlockParser.QUOTE.exec(content);
-
-            if (marker !== null) {
-                lines.push({
-                    // The space after the marker is part of it, even when it is part of a tab
-                    content: BlockParser.dedent(content.slice(marker[0].length), 1, marker[0].length),
-                    newline: newline,
-                });
-
-                this.advance();
-
-                continue;
-            }
+            const block = BlockParser.classify(this.current);
 
             // A line without the marker continues the quote's paragraph, unless it starts a block
-            if (BlockParser.BLANK.test(content) || !BlockParser.continuesParagraph(lines)) {
+            if (block.type !== 'quote' && (!flow.paragraph || block.type !== 'text')) {
                 break;
             }
 
-            if (BlockParser.startsBlock(content)) {
-                break;
-            }
+            const line = block.type === 'quote' ? block.content : this.current;
 
-            lines.push(this.current);
+            lines.push(line);
+
+            flow = BlockParser.follow(flow, line);
 
             this.advance();
         }
 
         return {
             type: 'quote',
-            children: BlockParser.parseContent(lines).nodes,
-            source: BlockParser.join(this.lines.slice(start, this.index)),
+            children: this.parseContent(lines).nodes,
+            source: this.getSource(this.lines[start], this.lines[this.index - 1]),
         };
     }
 
-    private parseCodeBlock(): MarkdownNode<'codeBlock'>|null {
-        const fence = BlockParser.FENCE.exec(this.current.content);
-
-        if (fence === null) {
-            return null;
-        }
-
-        const [, indent, backticks, backtickInfo, tildes, tildeInfo] = fence;
-        const delimiter = backticks ?? tildes;
-        const [word] = (backtickInfo ?? tildeInfo)
-            .trim()
-            .split(/[ \t]/);
-        const language = unescape(word);
+    private parseCodeBlock(fence: Fence): MarkdownNode<'codeBlock'> {
+        const info = fence.info.trim();
+        const language = unescape(info.slice(0, BlockParser.skip(info, BlockParser.SPACE, 0, false)));
         const start = this.index;
 
         let end = start + 1;
 
         // A fence that is never closed runs to the end of what holds it
-        while (end < this.lines.length && !BlockParser.closes(this.lines[end].content, delimiter)) {
+        while (end < this.lines.length && !BlockParser.closes(this.lines[end], fence)) {
             end++;
         }
-
-        // The content is as indented as it is past the fence's own indentation
-        const content = this.lines
-            .slice(start + 1, end)
-            .map(
-                line => ({
-                    content: BlockParser.dedent(line.content, indent.length),
-                    newline: line.newline,
-                }),
-            );
 
         this.seek(Math.min(end + 1, this.lines.length));
 
         return {
             type: 'codeBlock',
-            content: BlockParser.join(content),
+            // The content is as indented as it is past the fence's own indentation
+            content: BlockParser.join(
+                this.lines
+                    .slice(start + 1, end)
+                    .map(line => BlockParser.dedent(line, fence.indent)),
+            ),
             ...(language !== '' ? {language: language} : {}),
-            source: BlockParser.join(this.lines.slice(start, end + 1)),
+            source: this.getSource(this.lines[start], this.lines[this.index - 1]),
         };
     }
 
-    private parseList(interrupting: boolean): MarkdownNode<'list'>|null {
-        const first = BlockParser.matchListItem(this.current.content);
-
+    private parseList(first: ListMarker, interrupting: boolean): MarkdownNode|null {
         // A list only interrupts a paragraph where it can't be read as text, so neither when its
         // item is empty nor when it counts from another number than 1
-        if (first === null || (interrupting && (first.content === '' || (first.ordered && first.start !== 1)))) {
+        if (interrupting && (first.content.content === '' || (first.start ?? 1) !== 1)) {
             return null;
         }
 
@@ -742,12 +1001,10 @@ class BlockParser {
         const items: ListItem[] = [];
 
         for (
-            let sibling: ListSibling|null = {index: start, marker: first, separated: false};
+            let sibling: ListSibling|null = {marker: first, separated: false};
             sibling !== null;
             sibling = this.findSibling(first.kind)
         ) {
-            this.seek(sibling.index);
-
             const item = this.parseListItem(sibling.marker);
 
             items.push({
@@ -756,95 +1013,96 @@ class BlockParser {
             });
         }
 
-        // A list is loose when a blank line sets its items or the blocks of an item apart
+        // A list is loose when a blank line sets its items or the blocks of an item apart, and
+        // the text of the items of a tight list reads as it is, rather than as paragraphs
         const tight = items.every(item => !item.separated);
+        const nodes = items.map(
+            ({node}) => ({
+                ...node,
+                children: tight
+                    ? node.children.flatMap(child => (child.type === 'paragraph' ? child.children : [child]))
+                    : node.children,
+            }),
+        );
+        const source = this.getSource(this.lines[start], this.lines[this.index - 1]);
+
+        if (first.start === null) {
+            return {
+                type: 'unorderedList',
+                items: nodes,
+                source: source,
+            };
+        }
 
         return {
-            type: 'list',
-            ordered: first.ordered,
-            ...(first.ordered ? {start: first.start} : {}),
-            tight: tight,
-            items: items.map(
-                ({node}) => ({
-                    ...node,
-                    // The text of the items of a tight list reads as it is, rather than as paragraphs
-                    children: tight
-                        ? node.children.flatMap(child => (child.type === 'paragraph' ? child.children : [child]))
-                        : node.children,
-                }),
-            ),
-            source: BlockParser.join(this.lines.slice(start, this.index)),
+            type: 'orderedList',
+            start: first.start,
+            items: nodes,
+            source: source,
         };
     }
 
     private parseListItem(marker: ListMarker): ListItem {
         const start = this.index;
-        const lines: Line[] = [
-            {
-                content: marker.content,
-                newline: this.current.newline,
-            },
-        ];
+        const lines: Line[] = [marker.content];
 
         this.advance();
 
         // An item that starts with a blank line can't start with two, so another one ends it
-        if (marker.content !== '' || this.done || !BlockParser.BLANK.test(this.current.content)) {
+        if (marker.content.content !== '' || this.done || !BlockParser.isBlankLine(this.current)) {
             this.parseListItemLines(marker, lines);
         }
 
-        const content = BlockParser.parseContent(lines);
+        const content = this.parseContent(lines);
 
         return {
             node: {
                 type: 'listItem',
                 children: content.nodes,
-                source: BlockParser.join(this.lines.slice(start, this.index)),
+                source: this.getSource(this.lines[start], this.lines[this.index - 1]),
             },
             separated: content.separated,
         };
     }
 
     private parseListItemLines(marker: ListMarker, lines: Line[]): void {
-        while (!this.done) {
-            const {content, newline} = this.current;
+        let flow = BlockParser.follow(BlockParser.START, marker.content);
 
-            if (BlockParser.BLANK.test(content)) {
+        while (!this.done) {
+            const line = this.current;
+
+            if (BlockParser.isBlankLine(line)) {
                 const next = this.findNextContent();
 
-                // A blank line belongs to the item when what follows is indented into it, like
+                // Blank lines belong to the item when what follows is indented into it, like
                 // another paragraph of the item
-                if (next === null || BlockParser.indent(this.lines[next].content) < marker.offset) {
+                if (next === null || !BlockParser.isIndented(this.lines[next], marker.offset)) {
                     return;
                 }
 
-                lines.push({
-                    content: '',
-                    newline: newline,
-                });
+                for (; this.index < next; this.advance()) {
+                    const blank = BlockParser.cut(this.current, this.current.content.length);
 
-                this.advance();
+                    lines.push(blank);
 
-                continue;
-            }
-
-            if (BlockParser.indent(content) >= marker.offset) {
-                lines.push({
-                    content: BlockParser.dedent(content, marker.offset),
-                    newline: newline,
-                });
-
-                this.advance();
+                    flow = BlockParser.follow(flow, blank);
+                }
 
                 continue;
             }
 
-            // A line right after the item's paragraph continues it, unless it starts a block
-            if (!BlockParser.continuesParagraph(lines) || BlockParser.startsBlock(content)) {
+            const content = BlockParser.isIndented(line, marker.offset)
+                ? BlockParser.dedent(line, marker.offset)
+                : null;
+
+            // A line not indented into the item continues its paragraph, unless it starts a block
+            if (content === null && (!flow.paragraph || BlockParser.classify(line).type !== 'text')) {
                 return;
             }
 
-            lines.push(this.current);
+            lines.push(content ?? line);
+
+            flow = BlockParser.follow(flow, content ?? line);
 
             this.advance();
         }
@@ -861,22 +1119,25 @@ class BlockParser {
             return null;
         }
 
-        const marker = BlockParser.matchListItem(this.lines[index].content);
+        const block = BlockParser.classify(this.lines[index]);
 
-        if (marker === null || marker.kind !== kind) {
+        if (block.type !== 'item' || block.marker.kind !== kind) {
             return null;
         }
 
+        const separated = index > this.index;
+
+        this.seek(index);
+
         return {
-            index: index,
-            marker: marker,
-            separated: index > this.index,
+            marker: block.marker,
+            separated: separated,
         };
     }
 
     private findNextContent(): number|null {
         for (let {index} = this; index < this.lines.length; index++) {
-            if (!BlockParser.BLANK.test(this.lines[index].content)) {
+            if (!BlockParser.isBlankLine(this.lines[index])) {
                 return index;
             }
         }
@@ -885,112 +1146,349 @@ class BlockParser {
     }
 
     /**
-     * Tells whether a line past what holds a paragraph, like a quote, starts a block rather than
-     * continuing the paragraph.
-     *
-     * Any list item does, as the paragraph it would interrupt is no longer at its level.
+     * Parses the inline formatting of the lines, without the spaces they start with or the text
+     * ends with, keeping the source of each node as it is in the input.
      */
-    private static startsBlock(line: string): boolean {
-        return BlockParser.RULE.test(line)
-            || BlockParser.HEADING.test(line)
-            || BlockParser.QUOTE.test(line)
-            || BlockParser.FENCE.test(line)
-            || BlockParser.matchListItem(line) !== null;
+    private parseInline(lines: Line[]): MarkdownNode {
+        const positions: number[] = [];
+
+        let text = '';
+
+        lines.forEach((line, index) => {
+            const newline = index < lines.length - 1 ? line.newline : '';
+
+            let position = line.start + line.text - line.padding;
+
+            for (const char of line.content.slice(line.text) + newline) {
+                text += char;
+                positions.push(position);
+                position += char.length;
+            }
+        });
+
+        const end = BlockParser.skipBack(text, BlockParser.SPACE, text.length);
+
+        positions.length -= text.length - end;
+
+        return MarkdownParser.parse(text.slice(0, end), {markdown: this.markdown, positions: positions});
     }
 
     /**
-     * Tells whether the lines end in a paragraph still open, which a line right after them continues.
+     * Returns the input from the start of the first line to the end of the last.
      */
-    private static continuesParagraph(lines: Line[]): boolean {
-        let fence: string|null = null;
+    private getSource(first: Line, last: Line = first): string {
+        return this.markdown.slice(first.start, last.start + last.content.length - last.padding);
+    }
 
-        for (const {content} of lines) {
-            if (fence !== null) {
-                fence = BlockParser.closes(content, fence) ? null : fence;
-
-                continue;
-            }
-
-            const opening = BlockParser.FENCE.exec(content);
-
-            fence = opening === null ? null : opening[2] ?? opening[4];
+    /**
+     * Tells what block the line starts, if any.
+     */
+    private static classify(line: Line): Block {
+        if (BlockParser.isBlankLine(line)) {
+            return {type: 'blank'};
         }
 
-        const last = lines[lines.length - 1].content;
-        const item = BlockParser.matchListItem(last);
+        const {content} = line;
 
-        return fence === null
-            && !BlockParser.BLANK.test(last)
-            && !BlockParser.HEADING.test(last)
-            && !BlockParser.UNDERLINE.test(last)
-            && !BlockParser.RULE.test(last)
-            && !BlockParser.CLOSING_FENCE.test(last)
-            && !BlockParser.EMPTY_QUOTE.test(last)
-            && (item === null || item.content !== '');
+        const index = BlockParser.skipIndentation(content);
+        const char = content[index];
+
+        // The run of the character tells the level of a heading and the delimiter of a fence
+        const end = char === '#' || char === '`' || char === '~' ? BlockParser.skip(content, char, index) : index;
+
+        switch (char) {
+            case '>':
+                // The space after the marker is part of it, even when it is part of a tab
+                return {
+                    type: 'quote',
+                    content: BlockParser.dedent(BlockParser.cut(line, index + 1), 1, index + 1),
+                };
+
+            case '#':
+                if (end - index > 6 || !BlockParser.isSpace(content, end)) {
+                    return {type: 'text'};
+                }
+
+                return {
+                    type: 'heading',
+                    level: end - index,
+                    content: BlockParser.readHeading(line, end),
+                };
+
+            case '`':
+            case '~':
+                // The info of a fence of backticks can't hold backticks, as inline code can't span lines
+                if (end - index < 3 || (char === '`' && content.includes('`', end))) {
+                    return {type: 'text'};
+                }
+
+                return {
+                    type: 'fence',
+                    fence: {
+                        delimiter: content.slice(index, end),
+                        indent: index,
+                        info: content.slice(end),
+                    },
+                };
+
+            case '-':
+            case '*':
+            case '_':
+                if (BlockParser.isRule(content, index)) {
+                    return {type: 'rule'};
+                }
+
+                break;
+        }
+
+        const marker = BlockParser.readListMarker(line, index);
+
+        if (marker === null) {
+            return {type: 'text'};
+        }
+
+        return {
+            type: 'item',
+            marker: marker,
+        };
     }
 
-    private static closes(line: string, delimiter: string): boolean {
-        const closing = BlockParser.CLOSING_FENCE.exec(line);
+    private static readListMarker(line: Line, index: number): ListMarker|null {
+        const {content} = line;
+        const char = content[index];
+        const digits = BlockParser.skip(content, BlockParser.DIGITS, index);
 
-        return closing !== null && closing[1][0] === delimiter[0] && closing[1].length >= delimiter.length;
-    }
+        let end = -1;
 
-    private static matchListItem(line: string): ListMarker|null {
-        const match = BlockParser.LIST_ITEM.exec(line);
+        if (char === '-' || char === '*' || char === '+') {
+            end = index + 1;
+        } else if (digits > index && digits - index <= 9 && (content[digits] === '.' || content[digits] === ')')) {
+            end = digits + 1;
+        }
 
-        if (match === null || BlockParser.RULE.test(line)) {
+        if (end < 0 || !BlockParser.isSpace(content, end)) {
             return null;
         }
 
-        const [, indent, marker, spacing = '', content = ''] = match;
-        const ordered = /\d/.test(marker);
-        const column = indent.length + marker.length;
-        const width = BlockParser.columns(spacing, column);
+        let column = end;
+
+        for (const space of content.slice(end, BlockParser.skip(content, BlockParser.SPACE, end))) {
+            column = BlockParser.advanceColumn(column, space);
+        }
+
+        const empty = BlockParser.isBlank(content.slice(end));
 
         // The content starts a column past the marker when empty, or when set as far apart as code
         // would be, which keeps the columns past that one as spaces
-        const gap = content === '' || width > BlockParser.TAB_SIZE ? 1 : width;
+        const gap = empty || column - end > BlockParser.TAB_SIZE ? 1 : column - end;
 
         return {
-            kind: ordered ? marker.slice(-1) : marker,
-            ordered: ordered,
-            start: ordered ? Number.parseInt(marker, 10) : 1,
-            offset: column + gap,
-            content: content === '' ? '' : ' '.repeat(width - gap) + content,
+            kind: content[end - 1],
+            start: end - index > 1 ? Number.parseInt(content.slice(index, end - 1), 10) : null,
+            offset: end + gap,
+            content: empty
+                ? BlockParser.cut(line, content.length)
+                : BlockParser.dedent(BlockParser.cut(line, end), gap, end),
         };
     }
 
     /**
-     * Returns how many columns the given whitespace spans from the given column, with tabs
-     * reaching the next tab stop.
+     * Returns the text of a heading from past its opening hashes, without the hashes that may
+     * close it.
      */
-    private static columns(whitespace: string, start = 0): number {
-        let column = start;
+    private static readHeading(line: Line, start: number): Line {
+        const {content} = line;
+        const end = Math.max(start, BlockParser.skipBack(content, BlockParser.SPACE, content.length));
+        const hashes = BlockParser.skipBack(content, '#', end);
 
-        for (const char of whitespace) {
-            column = char === '\t' ? column + BlockParser.TAB_SIZE - (column % BlockParser.TAB_SIZE) : column + 1;
-        }
+        // The closing hashes must be set apart from the text, if any
+        const closed = hashes < end && (hashes <= start || BlockParser.isSpace(content, hashes - 1));
+        const textEnd = closed ? BlockParser.skipBack(content, BlockParser.SPACE, hashes) : end;
 
-        return column - start;
+        const text = BlockParser.cut(line, start);
+        const length = Math.max(0, textEnd - start);
+
+        return {
+            ...text,
+            content: text.content.slice(0, length),
+            text: Math.min(text.text, length),
+        };
     }
 
-    private static indent(line: string): number {
-        return BlockParser.columns(line.slice(0, line.search(/[^ \t]|$/)));
+    /**
+     * Returns the level of the heading the line underlines, or null when it is not an underline.
+     */
+    private static readUnderline(content: string): number|null {
+        const index = BlockParser.skipIndentation(content);
+        const char = content[index];
+
+        if (char !== '=' && char !== '-') {
+            return null;
+        }
+
+        if (!BlockParser.isBlank(content.slice(BlockParser.skip(content, char, index)))) {
+            return null;
+        }
+
+        return char === '=' ? 1 : 2;
+    }
+
+    private static isRule(content: string, index: number): boolean {
+        let count = 0;
+
+        for (const char of content.slice(index)) {
+            if (char === content[index]) {
+                count++;
+            } else if (!BlockParser.SPACE.includes(char)) {
+                return false;
+            }
+        }
+
+        return count >= 3;
+    }
+
+    private static closes(line: Line, fence: Fence): boolean {
+        const block = BlockParser.classify(line);
+
+        return block.type === 'fence'
+            && BlockParser.isBlank(block.fence.info)
+            && block.fence.delimiter[0] === fence.delimiter[0]
+            && block.fence.delimiter.length >= fence.delimiter.length;
+    }
+
+    /**
+     * Returns how the lines of a block end once the given line is added to them.
+     */
+    private static follow(flow: Flow, line: Line): Flow {
+        if (flow.fence !== null) {
+            return BlockParser.closes(line, flow.fence) ? BlockParser.START : flow;
+        }
+
+        const block = BlockParser.classify(line);
+
+        switch (block.type) {
+            case 'text':
+                return {
+                    // An underlined paragraph becomes a heading, which ends it
+                    paragraph: !flow.paragraph || BlockParser.readUnderline(line.content) === null,
+                    fence: null,
+                };
+
+            case 'fence':
+                return {
+                    paragraph: false,
+                    fence: block.fence,
+                };
+
+            case 'quote':
+                return {
+                    paragraph: !BlockParser.isBlankLine(block.content),
+                    fence: null,
+                };
+
+            case 'item':
+                return {
+                    paragraph: block.marker.content.content !== '',
+                    fence: null,
+                };
+
+            default:
+                return BlockParser.START;
+        }
+    }
+
+    private static isBlankLine(line: Line): boolean {
+        return line.text === line.content.length;
+    }
+
+    private static isBlank(text: string): boolean {
+        return BlockParser.skip(text, BlockParser.SPACE) === text.length;
+    }
+
+    /**
+     * Returns the index past the indentation a block may start with, of up to 3 spaces, as more
+     * would make the line code.
+     */
+    private static skipIndentation(content: string): number {
+        let index = 0;
+
+        while (index < 3 && content[index] === ' ') {
+            index++;
+        }
+
+        return index;
+    }
+
+    /**
+     * Tells whether the character at the given index is a space or a tab, or past the end.
+     */
+    private static isSpace(text: string, index: number): boolean {
+        return index >= text.length || BlockParser.SPACE.includes(text[index]);
+    }
+
+    /**
+     * Returns the index past the characters from the given index on that are among the given
+     * ones, or that are not, when told so.
+     */
+    private static skip(text: string, chars: string, index = 0, among = true): number {
+        let end = index;
+
+        while (end < text.length && chars.includes(text[end]) === among) {
+            end++;
+        }
+
+        return end;
+    }
+
+    /**
+     * Returns the index of the first of the characters right before the given index that are
+     * among the given ones.
+     */
+    private static skipBack(text: string, chars: string, index: number): number {
+        let start = index;
+
+        while (start > 0 && chars.includes(text[start - 1])) {
+            start--;
+        }
+
+        return start;
+    }
+
+    /**
+     * Returns the column past the given character, with tabs reaching the next tab stop.
+     */
+    private static advanceColumn(column: number, char: string): number {
+        return char === '\t' ? column + BlockParser.TAB_SIZE - (column % BlockParser.TAB_SIZE) : column + 1;
+    }
+
+    /**
+     * Tells whether the line is indented by the given columns or more, reading no further.
+     */
+    private static isIndented(line: Line, columns: number): boolean {
+        let column = 0;
+
+        for (let index = 0; index < line.text && column < columns; index++) {
+            column = BlockParser.advanceColumn(column, line.content[index]);
+        }
+
+        return column >= columns;
     }
 
     /**
      * Removes up to the given columns of indentation from a line starting at the given column,
      * keeping the columns of a tab past them as spaces.
      */
-    private static dedent(line: string, width: number, start = 0): string {
+    private static dedent(line: Line, width: number, start = 0): Line {
+        const {content} = line;
+
         let column = start;
         let index = 0;
 
-        while (index < line.length && column - start < width && (line[index] === ' ' || line[index] === '\t')) {
-            const next = column + BlockParser.columns(line[index], column);
+        while (index < content.length && column - start < width && BlockParser.SPACE.includes(content[index])) {
+            const next = BlockParser.advanceColumn(column, content[index]);
 
             if (next - start > width) {
-                return ' '.repeat(next - start - width) + line.slice(index + 1);
+                return BlockParser.cut(line, index + 1, next - start - width);
             }
 
             column = next;
@@ -998,35 +1496,54 @@ class BlockParser {
             index++;
         }
 
-        return line.slice(index);
-    }
-
-    private static split(input: string): Line[] {
-        const parts = input.split(/(\r\n|\r|\n)/);
-        const lines: Line[] = [];
-
-        for (let index = 0; index < parts.length; index += 2) {
-            lines.push({
-                content: parts[index],
-                newline: parts[index + 1] ?? '',
-            });
-        }
-
-        return lines;
+        return BlockParser.cut(line, index);
     }
 
     /**
-     * Returns the text of a paragraph's lines, without the spaces they start with or it ends with.
+     * Returns the line from the given index of its content on, starting with the given spaces.
      */
-    private static trim(lines: Line[]): string {
-        return BlockParser.join(
-            lines.map(
-                line => ({
-                    content: line.content.replace(/^[ \t]+/, ''),
-                    newline: line.newline,
-                }),
-            ),
-        ).replace(/[ \t]+$/, '');
+    private static cut(line: Line, index: number, padding = 0): Line {
+        const content = ' '.repeat(padding) + line.content.slice(index);
+
+        return {
+            content: content,
+            start: line.start + Math.max(index - line.padding, 0),
+            padding: padding + Math.max(line.padding - index, 0),
+            // The text is found again only when the cut goes into it, as past markers
+            text: index <= line.text ? padding + line.text - index : BlockParser.skip(content, BlockParser.SPACE),
+            newline: line.newline,
+        };
+    }
+
+    private static split(input: string): Line[] {
+        const lines: Line[] = [];
+
+        let start = 0;
+        let newline: string;
+
+        do {
+            let end = start;
+
+            while (end < input.length && input[end] !== '\n' && input[end] !== '\r') {
+                end++;
+            }
+
+            newline = input.startsWith('\r\n', end) ? '\r\n' : input.charAt(end);
+
+            const content = input.slice(start, end);
+
+            lines.push({
+                content: content,
+                start: start,
+                padding: 0,
+                text: BlockParser.skip(content, BlockParser.SPACE),
+                newline: newline,
+            });
+
+            start = end + newline.length;
+        } while (newline !== '');
+
+        return lines;
     }
 
     private static join(lines: Line[]): string {

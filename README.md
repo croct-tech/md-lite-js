@@ -27,7 +27,7 @@ Perfect for those who need to handle basic Markdown syntax without the overhead 
 
 **Features**
 
-- 🪶 **Lightweight:**  Zero dependencies, under 4 KB gzipped.
+- 🪶 **Lightweight:**  Zero dependencies, under 5 KB gzipped.
 - 🌐 **Cross-environment:**  Works in Node.js and browsers.
 - ✍️ **Minimalist:** Supports only _italic_, **bold**, ~~strikethrough~~, `inline code`, [links](#), 🖼️ images, ¶ paragraphs,
   headings, quotes, lists, code blocks, and horizontal rules.
@@ -69,6 +69,8 @@ const ast = parse(markdown);
 
 The `parse` function returns a tree-like structure called an [Abstract Syntax Tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree) (AST).
 You can find the full AST definition [here](/src/ast.ts).
+Each node's `source` is the exact text of the input it was parsed from, markers included.
+Nodes nested deeper than 100 levels are read as text, so that no input can exhaust the stack.
 
 #### Parsing blocks
 
@@ -119,11 +121,8 @@ const html = render(markdown, {
     paragraph: node => `<p>${node.children.join('')}</p>`,
     heading: node => `<h${node.level}>${node.children}</h${node.level}>`,
     quote: node => `<blockquote>${node.children.join('')}</blockquote>`,
-    list: node => (
-        node.ordered
-            ? `<ol start="${node.start}">${node.items.join('')}</ol>`
-            : `<ul>${node.items.join('')}</ul>`
-    ),
+    orderedList: node => `<ol start="${node.start}">${node.items.join('')}</ol>`,
+    unorderedList: node => `<ul>${node.items.join('')}</ul>`,
     listItem: node => `<li>${node.children.join('')}</li>`,
     codeBlock: node => `<pre><code>${node.content}</code></pre>`,
     rule: () => '<hr>',
@@ -154,11 +153,8 @@ const jsx = render(markdown, {
         return <Heading key={node.index}>{node.children}</Heading>;
     },
     quote: node => <blockquote key={node.index}>{node.children}</blockquote>,
-    list: node => (
-        node.ordered
-            ? <ol key={node.index} start={node.start}>{node.items}</ol>
-            : <ul key={node.index}>{node.items}</ul>
-    ),
+    orderedList: node => <ol key={node.index} start={node.start}>{node.items}</ol>,
+    unorderedList: node => <ul key={node.index}>{node.items}</ul>,
     listItem: node => <li key={node.index}>{node.children}</li>,
     codeBlock: node => <pre key={node.index}><code>{node.content}</code></pre>,
     rule: node => <hr key={node.index} />,
@@ -186,7 +182,7 @@ to handle any other unsupported feature by defining appropriate render
 functions and accessing the relevant data from the AST.
 
 The render functions for blocks are optional. A block without one, like a list
-when `list` is not given, is rendered as a paragraph of its source text,
+when `unorderedList` is not given, is rendered as a paragraph of its source text,
 with its inline formatting, as it would be if blocks were not parsed.
 
 ## Contributing

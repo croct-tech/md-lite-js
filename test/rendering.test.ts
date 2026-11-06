@@ -331,11 +331,8 @@ describe('A Markdown render function', () => {
             ...inline,
             heading: node => `<h${node.level}>${node.children}</h${node.level}>`,
             quote: node => `<blockquote>${node.children.join('')}</blockquote>`,
-            list: node => (
-                node.ordered
-                    ? `<ol start="${node.start}">${node.items.join('')}</ol>`
-                    : `<ul>${node.items.join('')}</ul>`
-            ),
+            orderedList: node => `<ol start="${node.start}">${node.items.join('')}</ol>`,
+            unorderedList: node => `<ul>${node.items.join('')}</ul>`,
             listItem: node => `<li>${node.children.join('')}</li>`,
             codeBlock: node => `<pre lang="${node.language}">${node.content}</pre>`,
             rule: () => '<hr>',
@@ -365,7 +362,7 @@ describe('A Markdown render function', () => {
     it('should render list items a renderer does not render as paragraphs of their text', () => {
         const html = render('- One\n\n  Still one', {
             ...inline,
-            list: node => `<ul>${node.items.join('')}</ul>`,
+            unorderedList: node => `<ul>${node.items.join('')}</ul>`,
         });
 
         expect(html).toBe('<ul><p>- One</p><p>  Still one</p></ul>');

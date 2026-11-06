@@ -7,6 +7,25 @@ describe('A Markdown parser function', () => {
         output: MarkdownNode,
     };
 
+    function getChildren(node: MarkdownNode): MarkdownNode[] {
+        if ('items' in node) {
+            return node.items;
+        }
+
+        return 'children' in node ? [node.children].flat() : [];
+    }
+
+    /**
+     * Expects the source of the node and of every node it holds to be as it is in the given text.
+     */
+    function expectVerbatim(node: MarkdownNode, text: string): void {
+        expect(text).toContain(node.source);
+
+        for (const child of getChildren(node)) {
+            expectVerbatim(child, node.source);
+        }
+    }
+
     it.each(Object.entries<ParsingScenario>({
         paragraphs: {
             input: 'First paragraph.\n\nSecond paragraph.',
@@ -129,6 +148,14 @@ describe('A Markdown parser function', () => {
                 type: 'fragment',
                 source: '\n\r\r\n',
                 children: [],
+            },
+        },
+        'lines ended by a carriage return and a line feed': {
+            input: 'First\r\nSecond',
+            output: {
+                type: 'text',
+                source: 'First\r\nSecond',
+                content: 'First\r\nSecond',
             },
         },
         'paragraphs multiple newlines': {
@@ -1453,6 +1480,62 @@ describe('A Markdown parser function', () => {
                 ],
             },
         },
+        'image without its source': {
+            input: '![alt]',
+            output: {
+                type: 'text',
+                source: '![alt]',
+                content: '![alt]',
+            },
+        },
+        'image with an unclosed source': {
+            input: '![alt](src',
+            output: {
+                type: 'text',
+                source: '![alt](src',
+                content: '![alt](src',
+            },
+        },
+        'link without its target': {
+            input: '[label]',
+            output: {
+                type: 'text',
+                source: '[label]',
+                content: '[label]',
+            },
+        },
+        'link with an unclosed title': {
+            input: '[label](href "title',
+            output: {
+                type: 'text',
+                source: '[label](href "title',
+                content: '[label](href "title',
+            },
+        },
+        'link with an unclosed target': {
+            input: '[label](href "title"',
+            output: {
+                type: 'text',
+                source: '[label](href "title"',
+                content: '[label](href "title"',
+            },
+        },
+        'many unclosed brackets as text': {
+            input: '['.repeat(100),
+            output: {
+                type: 'text',
+                source: '['.repeat(100),
+                content: '['.repeat(100),
+            },
+        },
+        'many unclosed links as text': {
+            input: '[a](b '.repeat(100),
+            output: {
+                type: 'text',
+                source: '[a](b '.repeat(100),
+                content: '[a](b '.repeat(100),
+            },
+        },
         'headings of every level': {
             input: '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six',
             output: {
@@ -1568,6 +1651,19 @@ describe('A Markdown parser function', () => {
                 },
             },
         },
+        'a heading of closing hashes only': {
+            input: '# #',
+            output: {
+                type: 'heading',
+                source: '# #',
+                level: 1,
+                children: {
+                    type: 'fragment',
+                    source: '',
+                    children: [],
+                },
+            },
+        },
         'a hash without a space as text': {
             input: '#hashtag',
             output: {
@@ -1626,7 +1722,7 @@ describe('A Markdown parser function', () => {
                 level: 2,
                 children: {
                     type: 'text',
-                    source: 'First line\nsecond line',
+                    source: 'First line\n  second line',
                     content: 'First line\nsecond line',
                 },
             },
@@ -1663,7 +1759,7 @@ describe('A Markdown parser function', () => {
                 children: [
                     {
                         type: 'paragraph',
-                        source: 'Quoted **text**\non two lines',
+                        source: 'Quoted **text**\n> on two lines',
                         children: [
                             {
                                 type: 'text',
@@ -1681,8 +1777,28 @@ describe('A Markdown parser function', () => {
                             },
                             {
                                 type: 'text',
-                                source: '\non two lines',
+                                source: '\n> on two lines',
                                 content: '\non two lines',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+        'a quote of equals signs continued by a lazy line': {
+            input: '> ===\nLazy',
+            output: {
+                type: 'quote',
+                source: '> ===\nLazy',
+                children: [
+                    {
+                        type: 'paragraph',
+                        source: '===\nLazy',
+                        children: [
+                            {
+                                type: 'text',
+                                source: '===\nLazy',
+                                content: '===\nLazy',
                             },
                         ],
                     },
@@ -1707,10 +1823,8 @@ describe('A Markdown parser function', () => {
                         ],
                     },
                     {
-                        type: 'list',
-                        source: '- One\n- Two',
-                        ordered: false,
-                        tight: true,
+                        type: 'unorderedList',
+                        source: '- One\n> - Two',
                         items: [
                             {
                                 type: 'listItem',
@@ -1809,10 +1923,8 @@ describe('A Markdown parser function', () => {
                         ],
                     },
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '- One',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -1872,7 +1984,7 @@ describe('A Markdown parser function', () => {
                         children: [
                             {
                                 type: 'codeBlock',
-                                source: '```\ncode',
+                                source: '```\n> code',
                                 content: 'code',
                             },
                         ],
@@ -1894,10 +2006,8 @@ describe('A Markdown parser function', () => {
         'an unordered list': {
             input: '- One\n- **Two**',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '- One\n- **Two**',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -1935,10 +2045,8 @@ describe('A Markdown parser function', () => {
                 source: '- One\n* Two\n+ Three',
                 children: [
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '- One',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -1954,10 +2062,8 @@ describe('A Markdown parser function', () => {
                         ],
                     },
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '* Two',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -1973,10 +2079,8 @@ describe('A Markdown parser function', () => {
                         ],
                     },
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '+ Three',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2001,11 +2105,9 @@ describe('A Markdown parser function', () => {
                 source: '1. One\n2) Two',
                 children: [
                     {
-                        type: 'list',
+                        type: 'orderedList',
                         source: '1. One',
-                        ordered: true,
                         start: 1,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2021,11 +2123,9 @@ describe('A Markdown parser function', () => {
                         ],
                     },
                     {
-                        type: 'list',
+                        type: 'orderedList',
                         source: '2) Two',
-                        ordered: true,
                         start: 2,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2046,11 +2146,9 @@ describe('A Markdown parser function', () => {
         'an ordered list': {
             input: '3. Three\n4. Four',
             output: {
-                type: 'list',
+                type: 'orderedList',
                 source: '3. Three\n4. Four',
-                ordered: true,
                 start: 3,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2080,10 +2178,8 @@ describe('A Markdown parser function', () => {
         'a nested list': {
             input: '- One\n    - Inner\n    - Inner too\n- Two',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '- One\n    - Inner\n    - Inner too\n- Two',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2095,10 +2191,8 @@ describe('A Markdown parser function', () => {
                                 content: 'One',
                             },
                             {
-                                type: 'list',
-                                source: '  - Inner\n  - Inner too',
-                                ordered: false,
-                                tight: true,
+                                type: 'unorderedList',
+                                source: '  - Inner\n    - Inner too',
                                 items: [
                                     {
                                         type: 'listItem',
@@ -2143,10 +2237,8 @@ describe('A Markdown parser function', () => {
         'a loose list': {
             input: '- One\n\n- Two',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '- One\n\n- Two',
-                ordered: false,
-                tight: false,
                 items: [
                     {
                         type: 'listItem',
@@ -2188,10 +2280,8 @@ describe('A Markdown parser function', () => {
         'a loose list item': {
             input: '- First\n\n  Still first\n- Second',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '- First\n\n  Still first\n- Second',
-                ordered: false,
-                tight: false,
                 items: [
                     {
                         type: 'listItem',
@@ -2244,10 +2334,8 @@ describe('A Markdown parser function', () => {
         'a loose list in a tight one': {
             input: '- One\n  - Inner\n\n  - Inner too',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '- One\n  - Inner\n\n  - Inner too',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2259,10 +2347,8 @@ describe('A Markdown parser function', () => {
                                 content: 'One',
                             },
                             {
-                                type: 'list',
-                                source: '- Inner\n\n- Inner too',
-                                ordered: false,
-                                tight: false,
+                                type: 'unorderedList',
+                                source: '- Inner\n\n  - Inner too',
                                 items: [
                                     {
                                         type: 'listItem',
@@ -2308,10 +2394,8 @@ describe('A Markdown parser function', () => {
         'a list item continued on the next line': {
             input: '- First\ncontinued\n- Second',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '- First\ncontinued\n- Second',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2341,10 +2425,8 @@ describe('A Markdown parser function', () => {
         'an empty list item': {
             input: '-\n- Second',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '-\n- Second',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2368,10 +2450,8 @@ describe('A Markdown parser function', () => {
         'a list item starting with a blank line': {
             input: '-\n  First',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '-\n  First',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2394,10 +2474,8 @@ describe('A Markdown parser function', () => {
                 source: '-\n\n  After',
                 children: [
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '-',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2423,10 +2501,8 @@ describe('A Markdown parser function', () => {
         'a list item set far from its marker': {
             input: '-     Far',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '-     Far',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2445,10 +2521,8 @@ describe('A Markdown parser function', () => {
         'list items indented with tabs': {
             input: '-\tOne\n\tcontinued\n- Two\n\t- Inner',
             output: {
-                type: 'list',
+                type: 'unorderedList',
                 source: '-\tOne\n\tcontinued\n- Two\n\t- Inner',
-                ordered: false,
-                tight: true,
                 items: [
                     {
                         type: 'listItem',
@@ -2456,7 +2530,7 @@ describe('A Markdown parser function', () => {
                         children: [
                             {
                                 type: 'text',
-                                source: 'One\ncontinued',
+                                source: 'One\n\tcontinued',
                                 content: 'One\ncontinued',
                             },
                         ],
@@ -2471,14 +2545,12 @@ describe('A Markdown parser function', () => {
                                 content: 'Two',
                             },
                             {
-                                type: 'list',
-                                source: '  - Inner',
-                                ordered: false,
-                                tight: true,
+                                type: 'unorderedList',
+                                source: '- Inner',
                                 items: [
                                     {
                                         type: 'listItem',
-                                        source: '  - Inner',
+                                        source: '- Inner',
                                         children: [
                                             {
                                                 type: 'text',
@@ -2512,10 +2584,8 @@ describe('A Markdown parser function', () => {
                         ],
                     },
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '- One\n- Two',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2578,11 +2648,9 @@ describe('A Markdown parser function', () => {
                         ],
                     },
                     {
-                        type: 'list',
+                        type: 'orderedList',
                         source: '2. Two',
-                        ordered: true,
                         start: 2,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2607,10 +2675,8 @@ describe('A Markdown parser function', () => {
                 source: '- One\n- Two\n\nAfter',
                 children: [
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '- One\n- Two',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2722,7 +2788,7 @@ describe('A Markdown parser function', () => {
                         children: [
                             {
                                 type: 'codeBlock',
-                                source: '```\ncode',
+                                source: '```\n> code',
                                 content: 'code',
                             },
                         ],
@@ -2753,7 +2819,7 @@ describe('A Markdown parser function', () => {
                         children: [
                             {
                                 type: 'codeBlock',
-                                source: '```\ncode\n```',
+                                source: '```\n> code\n> ```',
                                 content: 'code',
                             },
                         ],
@@ -2779,10 +2845,8 @@ describe('A Markdown parser function', () => {
                 source: '- ~~~\n  code\nAfter',
                 children: [
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '- ~~~\n  code',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2790,7 +2854,7 @@ describe('A Markdown parser function', () => {
                                 children: [
                                     {
                                         type: 'codeBlock',
-                                        source: '~~~\ncode',
+                                        source: '~~~\n  code',
                                         content: 'code',
                                     },
                                 ],
@@ -2888,7 +2952,7 @@ describe('A Markdown parser function', () => {
                         children: [
                             {
                                 type: 'text',
-                                source: 'Indented\nlines',
+                                source: 'Indented\n  lines',
                                 content: 'Indented\nlines',
                             },
                         ],
@@ -2913,10 +2977,8 @@ describe('A Markdown parser function', () => {
                         },
                     },
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '- One\r- Two',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -2984,10 +3046,8 @@ describe('A Markdown parser function', () => {
                         },
                     },
                     {
-                        type: 'list',
+                        type: 'unorderedList',
                         source: '- One',
-                        ordered: false,
-                        tight: true,
                         items: [
                             {
                                 type: 'listItem',
@@ -3044,6 +3104,50 @@ describe('A Markdown parser function', () => {
         },
     }))('should parse %s', (_, {input, output}) => {
         expect(parse(input)).toEqual(output);
+
+        expectVerbatim(output, input);
+    });
+
+    it('should read nodes nested too deep as text', () => {
+        let node = parse(`${'['.repeat(101)}a${'](u)'.repeat(101)}`);
+        let depth = 0;
+
+        while (node.type === 'link') {
+            node = node.children;
+            depth++;
+        }
+
+        expect(depth).toBe(100);
+
+        expect(node).toEqual({
+            type: 'text',
+            source: '[a](u)',
+            content: '[a](u)',
+        });
+    });
+
+    it('should read blocks nested too deep as paragraphs', () => {
+        let node = parse(`${'>'.repeat(102)} a`);
+        let depth = 0;
+
+        while (node.type === 'quote') {
+            [node] = node.children;
+            depth++;
+        }
+
+        expect(depth).toBe(101);
+
+        expect(node).toEqual({
+            type: 'paragraph',
+            source: '> a',
+            children: [
+                {
+                    type: 'text',
+                    source: '> a',
+                    content: '> a',
+                },
+            ],
+        });
     });
 
     it('should parse only inline formatting and paragraphs when blocks are off', () => {
