@@ -3103,7 +3103,7 @@ describe('A Markdown parser function', () => {
             },
         },
     }))('should parse %s', (_, {input, output}) => {
-        expect(parse(input)).toEqual(output);
+        expect(parse(input, {blocks: true})).toEqual(output);
 
         expectVerbatim(output, input);
     });
@@ -3127,7 +3127,7 @@ describe('A Markdown parser function', () => {
     });
 
     it('should read blocks nested too deep as paragraphs', () => {
-        let node = parse(`${'>'.repeat(102)} a`);
+        let node = parse(`${'>'.repeat(102)} a`, {blocks: true});
         let depth = 0;
 
         while (node.type === 'quote') {
@@ -3150,8 +3150,8 @@ describe('A Markdown parser function', () => {
         });
     });
 
-    it('should parse only inline formatting and paragraphs when blocks are off', () => {
-        expect(parse('# Title\n\n- **One**', {blocks: false})).toEqual({
+    it('should parse only inline formatting and paragraphs by default', () => {
+        expect(parse('# Title\n\n- **One**')).toEqual({
             type: 'fragment',
             source: '# Title\n\n- **One**',
             children: [

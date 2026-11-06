@@ -74,8 +74,16 @@ Nodes nested deeper than 100 levels are read as text, so that no input can exhau
 
 #### Parsing blocks
 
-Besides inline formatting, the parser reads the following blocks, as
-[CommonMark](https://spec.commonmark.org) does:
+By default, the parser reads only inline formatting and paragraphs, which suits short texts, like titles.
+To also read blocks, as [CommonMark](https://spec.commonmark.org) does, turn on the `blocks` option:
+
+```ts
+import {parse} from '@croct/md-lite';
+
+const ast = parse('# Title\n\n- One\n- Two', {blocks: true});
+```
+
+These are the blocks it reads:
 
 - Headings, from `# Heading` to `###### Heading`, or a paragraph underlined with `===` or `---`
 - Quotes, with each line starting with `>`
@@ -87,16 +95,6 @@ Besides inline formatting, the parser reads the following blocks, as
 A list is tight unless a blank line sets its items apart, or the blocks of an item.
 The text of the items of a tight list is not wrapped in paragraphs, so that it renders
 as a compact list, while every block in a loose list is.
-
-For short texts that should never hold blocks, like titles, you can parse only inline
-formatting and paragraphs:
-
-```ts
-import {parse} from '@croct/md-lite';
-
-// The heading is read as text
-const ast = parse('# Not a heading', {blocks: false});
-```
 
 ### Rendering Markdown
 
@@ -181,6 +179,7 @@ instead of trying to render it as an image. You can adapt this approach
 to handle any other unsupported feature by defining appropriate render 
 functions and accessing the relevant data from the AST.
 
+To render blocks from a string, pass the same option to `render`, like `render(markdown, renderer, {blocks: true})`.
 The render functions for blocks are optional. A block without one, like a list
 when `unorderedList` is not given, is rendered as a paragraph of its source text,
 with its inline formatting, as it would be if blocks were not parsed.

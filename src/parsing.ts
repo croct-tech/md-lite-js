@@ -4,18 +4,18 @@ export type ParsingOptions = {
     /**
      * Whether to parse blocks, like headings, quotes, lists, code blocks and rules.
      *
-     * Defaults to true. Turning it off parses only inline formatting and paragraphs,
-     * which suits short texts, like titles.
+     * Defaults to false, which parses only inline formatting and paragraphs, as suits short
+     * texts, like titles.
      */
     blocks?: boolean,
 };
 
 export function parse(markdown: string, options: ParsingOptions = {}): MarkdownNode {
-    if (options.blocks === false) {
-        return MarkdownParser.parse(markdown);
+    if (options.blocks === true) {
+        return BlockParser.parse(markdown);
     }
 
-    return BlockParser.parse(markdown);
+    return MarkdownParser.parse(markdown);
 }
 
 export function unescape(input: string): string {
@@ -42,8 +42,9 @@ export function unescape(input: string): string {
 }
 
 /**
- * How deep nodes nest at most, past which they are read as text, which keeps deep nesting from
- * exhausting the stack.
+ * The deepest nodes nest, past which they are read as text.
+ *
+ * This keeps deeply nested input from exhausting the stack.
  */
 const MAX_NESTING = 100;
 
@@ -84,7 +85,7 @@ class MarkdownParser {
     /**
      * The texts that end the plain parts of a node, like the content of inline code.
      */
-    private static readonly TEXT_ENDINGS = [['`'], ['``'], [']'], [')'], [')', '"'], ['"']];
+    private static readonly TEXT_ENDINGS = ['`', '``', ']', ')', '"'];
 
     /**
      * The characters that may start a node, end what is read or escape another character.
@@ -98,8 +99,10 @@ class MarkdownParser {
     }
 
     /**
-     * Parses the given text, whose nodes have their source in the Markdown the map gives, if any,
-     * like a paragraph of a quote, which reads with the quote's markers.
+     * Parses the given text into a tree of nodes.
+     *
+     * The nodes have their source in the Markdown the map gives, if any, like a paragraph of
+     * a quote, whose source reads with the quote's markers.
      */
     public static parse(input: string, map: SourceMap|null = null): MarkdownNode {
         return new MarkdownParser(input, map).parseNext();
@@ -488,21 +491,19 @@ class MarkdownParser {
         }
 
         // Where reading from each slot stops, for each of the texts that end what is read
-        const nodeTables = MarkdownParser.NODE_ENDINGS.map(() => new Array<number>(positions.length).fill(length));
-        const textTables = MarkdownParser.TEXT_ENDINGS.map(() => new Array<number>(positions.length).fill(length));
         const nodeStops: Record<string, number[]> = {};
         const textStops: Record<string, number[]> = {};
 
-        MarkdownParser.NODE_ENDINGS.forEach((ending, position) => {
-            nodeStops[ending] = nodeTables[position];
-        });
+        for (const ending of MarkdownParser.NODE_ENDINGS) {
+            nodeStops[ending] = new Array<number>(positions.length).fill(length);
+        }
 
-        MarkdownParser.TEXT_ENDINGS.forEach((endings, position) => {
-            textStops[endings.join('')] = textTables[position];
-        });
+        for (const ending of MarkdownParser.TEXT_ENDINGS) {
+            textStops[ending] = new Array<number>(positions.length).fill(length);
+        }
 
         const findNodeStop = (ending: string, index: number): number => nodeStops[ending][slots[index]];
-        const findTextStop = (endings: string, index: number): number => textStops[endings][slots[index]];
+        const findTextStop = (ending: string, index: number): number => textStops[ending][slots[index]];
 
         const matches = (index: number, substring: string): boolean => (
             MarkdownParser.matchesAt(chars, index, substring)
@@ -551,7 +552,8 @@ class MarkdownParser {
                         return -1;
                     }
 
-                    const end = findTextStop(')"', href);
+                    // The target ends at the closing parenthesis or at the title, whichever comes first
+                    const end = Math.min(findTextStop(')', href), findTextStop('"', href));
 
                     if (!matches(end, '"')) {
                         return close(end, ')');
@@ -577,17 +579,17 @@ class MarkdownParser {
             const escaped = char === '\\' && index + 1 < length;
             const newline = char === '\r' || char === '\n';
 
-            MarkdownParser.TEXT_ENDINGS.forEach((endings, position) => {
-                const stops = textTables[position];
+            for (const ending of MarkdownParser.TEXT_ENDINGS) {
+                const stops = textStops[ending];
 
                 if (escaped) {
                     stops[slot] = stops[slots[index + 2]];
-                } else if (newline || endings.some(ending => matches(index, ending))) {
+                } else if (newline || matches(index, ending)) {
                     stops[slot] = index;
                 } else {
                     stops[slot] = stops[slots[index + 1]];
                 }
-            });
+            }
 
             const end = findEnd(index);
 
@@ -595,8 +597,8 @@ class MarkdownParser {
                 ends.set(index, end);
             }
 
-            MarkdownParser.NODE_ENDINGS.forEach((ending, position) => {
-                const stops = nodeTables[position];
+            for (const ending of MarkdownParser.NODE_ENDINGS) {
+                const stops = nodeStops[ending];
 
                 if (escaped) {
                     stops[slot] = stops[slots[index + 2]];
@@ -606,7 +608,7 @@ class MarkdownParser {
                     // A node is read as a whole, so what ends it can't end what holds it
                     stops[slot] = stops[slots[end < 0 ? index + 1 : end]];
                 }
-            });
+            }
         }
 
         return ends;
@@ -635,14 +637,16 @@ type Line = {
     start: number,
 
     /**
-     * The spaces the content starts with that are not in the input, as they are what is left of
-     * a tab that the markers end within.
+     * The spaces the content starts with that are not in the input.
+     *
+     * They are what is left of a tab that the markers end within.
      */
     padding: number,
 
     /**
-     * Where the text of the content starts, past the spaces and tabs it starts with, which is
-     * the length of the content when the line is blank.
+     * Where the text of the content starts, past the spaces and tabs it starts with.
+     *
+     * It is the length of the content when the line is blank.
      */
     text: number,
 
@@ -651,9 +655,9 @@ type Line = {
 
 type ListMarker = {
     /**
-     * The bullet, or the delimiter after the number, which the items of the same list share.
+     * The bullet, or the character after the number, which the items of the same list share.
      */
-    kind: string,
+    delimiter: string,
 
     /**
      * The number of an ordered item, or null for a bullet.
@@ -682,15 +686,32 @@ type Fence = {
 /**
  * What a line starts, as told by its first character past the indentation.
  */
-type Block = {type: 'blank' | 'text' | 'rule'}
-    | {type: 'heading', level: number, content: Line}
-    | {type: 'quote', content: Line}
-    | {type: 'fence', fence: Fence}
-    | {type: 'item', marker: ListMarker};
+type Block =
+    | {
+        type: 'blank'|'text'|'rule',
+    }
+    | {
+        type: 'heading',
+        level: number,
+        content: Line,
+    }
+    | {
+        type: 'quote',
+        content: Line,
+    }
+    | {
+        type: 'fence',
+        fence: Fence,
+    }
+    | {
+        type: 'item',
+        marker: ListMarker,
+    };
 
 /**
- * How the lines of a block read so far end, which tells whether a line without the block's
- * markers continues it.
+ * How the lines of a block read so far end.
+ *
+ * This tells whether a line without the block's markers continues it.
  */
 type Flow = {
     readonly paragraph: boolean,
@@ -784,8 +805,9 @@ class BlockParser {
     }
 
     /**
-     * Parses the blocks the lines hold, or returns null when they hold none, leaving the text
-     * to be parsed as paragraphs.
+     * Parses the blocks the lines hold, or returns null when they hold none.
+     *
+     * Without blocks, the text is left to be parsed as paragraphs.
      */
     private parseBlocks(): MarkdownNode[]|null {
         const nodes: MarkdownNode[] = [];
@@ -906,7 +928,7 @@ class BlockParser {
     }
 
     /**
-     * Parses the paragraph that ends the given text as a heading, when underlined by the current line.
+     * Parses the paragraph ending the text as a heading, if the current line underlines it.
      */
     private parseUnderlinedHeading(text: Line[]): MarkdownNode<'heading'>|null {
         const level = BlockParser.readUnderline(this.current.content);
@@ -959,7 +981,7 @@ class BlockParser {
         return {
             type: 'quote',
             children: this.parseContent(lines).nodes,
-            source: this.getSource(this.lines[start], this.lines[this.index - 1]),
+            source: this.getSourceSince(start),
         };
     }
 
@@ -986,7 +1008,7 @@ class BlockParser {
                     .map(line => BlockParser.dedent(line, fence.indent)),
             ),
             ...(language !== '' ? {language: language} : {}),
-            source: this.getSource(this.lines[start], this.lines[this.index - 1]),
+            source: this.getSourceSince(start),
         };
     }
 
@@ -1003,7 +1025,7 @@ class BlockParser {
         for (
             let sibling: ListSibling|null = {marker: first, separated: false};
             sibling !== null;
-            sibling = this.findSibling(first.kind)
+            sibling = this.findSibling(first.delimiter)
         ) {
             const item = this.parseListItem(sibling.marker);
 
@@ -1024,7 +1046,7 @@ class BlockParser {
                     : node.children,
             }),
         );
-        const source = this.getSource(this.lines[start], this.lines[this.index - 1]);
+        const source = this.getSourceSince(start);
 
         if (first.start === null) {
             return {
@@ -1059,7 +1081,7 @@ class BlockParser {
             node: {
                 type: 'listItem',
                 children: content.nodes,
-                source: this.getSource(this.lines[start], this.lines[this.index - 1]),
+                source: this.getSourceSince(start),
             },
             separated: content.separated,
         };
@@ -1109,10 +1131,11 @@ class BlockParser {
     }
 
     /**
-     * Finds the next item of a list of the given kind, past any blank lines, which keep items in
-     * the same list.
+     * Finds the next item of a list with the given delimiter, past any blank lines.
+     *
+     * Blank lines between items keep them in the same list.
      */
-    private findSibling(kind: string): ListSibling|null {
+    private findSibling(delimiter: string): ListSibling|null {
         const index = this.findNextContent();
 
         if (index === null) {
@@ -1121,7 +1144,7 @@ class BlockParser {
 
         const block = BlockParser.classify(this.lines[index]);
 
-        if (block.type !== 'item' || block.marker.kind !== kind) {
+        if (block.type !== 'item' || block.marker.delimiter !== delimiter) {
             return null;
         }
 
@@ -1146,8 +1169,9 @@ class BlockParser {
     }
 
     /**
-     * Parses the inline formatting of the lines, without the spaces they start with or the text
-     * ends with, keeping the source of each node as it is in the input.
+     * Parses the inline formatting of the lines, keeping the source of each node as in the input.
+     *
+     * The spaces the lines start with and the text ends with are left out.
      */
     private parseInline(lines: Line[]): MarkdownNode {
         const positions: number[] = [];
@@ -1171,6 +1195,13 @@ class BlockParser {
         positions.length -= text.length - end;
 
         return MarkdownParser.parse(text.slice(0, end), {markdown: this.markdown, positions: positions});
+    }
+
+    /**
+     * Returns the input from the line at the given index to the end of the last line read.
+     */
+    private getSourceSince(index: number): string {
+        return this.getSource(this.lines[index], this.lines[this.index - 1]);
     }
 
     /**
@@ -1283,7 +1314,7 @@ class BlockParser {
         const gap = empty || column - end > BlockParser.TAB_SIZE ? 1 : column - end;
 
         return {
-            kind: content[end - 1],
+            delimiter: content[end - 1],
             start: end - index > 1 ? Number.parseInt(content.slice(index, end - 1), 10) : null,
             offset: end + gap,
             content: empty
@@ -1293,8 +1324,9 @@ class BlockParser {
     }
 
     /**
-     * Returns the text of a heading from past its opening hashes, without the hashes that may
-     * close it.
+     * Returns the text of a heading from past its opening hashes.
+     *
+     * The hashes that may close the heading are left out.
      */
     private static readHeading(line: Line, start: number): Line {
         const {content} = line;
@@ -1406,8 +1438,9 @@ class BlockParser {
     }
 
     /**
-     * Returns the index past the indentation a block may start with, of up to 3 spaces, as more
-     * would make the line code.
+     * Returns the index past the indentation a block may start with.
+     *
+     * The indentation is up to 3 spaces, as more would make the line code.
      */
     private static skipIndentation(content: string): number {
         let index = 0;
@@ -1427,8 +1460,9 @@ class BlockParser {
     }
 
     /**
-     * Returns the index past the characters from the given index on that are among the given
-     * ones, or that are not, when told so.
+     * Returns the index past the characters from the given index on that are among the given ones.
+     *
+     * When told so, it skips the characters that are not among them instead.
      */
     private static skip(text: string, chars: string, index = 0, among = true): number {
         let end = index;
@@ -1441,8 +1475,7 @@ class BlockParser {
     }
 
     /**
-     * Returns the index of the first of the characters right before the given index that are
-     * among the given ones.
+     * Returns the index of the first of the given characters right before the given index.
      */
     private static skipBack(text: string, chars: string, index: number): number {
         let start = index;
@@ -1475,8 +1508,9 @@ class BlockParser {
     }
 
     /**
-     * Removes up to the given columns of indentation from a line starting at the given column,
-     * keeping the columns of a tab past them as spaces.
+     * Removes up to the given columns of indentation from a line starting at the given column.
+     *
+     * The columns of a tab past them are kept as spaces.
      */
     private static dedent(line: Line, width: number, start = 0): Line {
         const {content} = line;

@@ -327,16 +327,20 @@ describe('A Markdown render function', () => {
     ].join('\n\n');
 
     it('should render blocks', () => {
-        const html = render(blocks, {
-            ...inline,
-            heading: node => `<h${node.level}>${node.children}</h${node.level}>`,
-            quote: node => `<blockquote>${node.children.join('')}</blockquote>`,
-            orderedList: node => `<ol start="${node.start}">${node.items.join('')}</ol>`,
-            unorderedList: node => `<ul>${node.items.join('')}</ul>`,
-            listItem: node => `<li>${node.children.join('')}</li>`,
-            codeBlock: node => `<pre lang="${node.language}">${node.content}</pre>`,
-            rule: () => '<hr>',
-        });
+        const html = render(
+            blocks,
+            {
+                ...inline,
+                heading: node => `<h${node.level}>${node.children}</h${node.level}>`,
+                quote: node => `<blockquote>${node.children.join('')}</blockquote>`,
+                orderedList: node => `<ol start="${node.start}">${node.items.join('')}</ol>`,
+                unorderedList: node => `<ul>${node.items.join('')}</ul>`,
+                listItem: node => `<li>${node.children.join('')}</li>`,
+                codeBlock: node => `<pre lang="${node.language}">${node.content}</pre>`,
+                rule: () => '<hr>',
+            },
+            {blocks: true},
+        );
 
         expect(html).toBe(
             '<h1>Title</h1>'
@@ -349,7 +353,7 @@ describe('A Markdown render function', () => {
     });
 
     it('should render blocks a renderer does not render as paragraphs of their text', () => {
-        expect(render(blocks, inline)).toBe(
+        expect(render(blocks, inline, {blocks: true})).toBe(
             '<p># Title</p>'
             + '<p>> Quoted <b>text</b></p>'
             + '<p>- One\n- Two</p>'
@@ -360,10 +364,14 @@ describe('A Markdown render function', () => {
     });
 
     it('should render list items a renderer does not render as paragraphs of their text', () => {
-        const html = render('- One\n\n  Still one', {
-            ...inline,
-            unorderedList: node => `<ul>${node.items.join('')}</ul>`,
-        });
+        const html = render(
+            '- One\n\n  Still one',
+            {
+                ...inline,
+                unorderedList: node => `<ul>${node.items.join('')}</ul>`,
+            },
+            {blocks: true},
+        );
 
         expect(html).toBe('<ul><p>- One</p><p>  Still one</p></ul>');
     });

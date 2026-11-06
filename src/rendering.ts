@@ -1,5 +1,5 @@
 import {MarkdownNode, MarkdownNodeType} from './ast';
-import {parse} from './parsing';
+import {parse, ParsingOptions} from './parsing';
 
 type VisitedMarkdownNodeMap<C> = {
     text: {
@@ -75,21 +75,48 @@ export interface MarkdownRenderer<T> {
     paragraph(node: VisitedMarkdownNode<T, 'paragraph'>): T;
     fragment(node: VisitedMarkdownNode<T, 'fragment'>): T;
 
-    /*
-     * Blocks are optional, so a renderer that doesn't render one renders it as a paragraph of its
-     * text, with its inline formatting, as it did before blocks were parsed.
+    /**
+     * Renders a heading, or its text as a paragraph when not given.
      */
     heading?(node: VisitedMarkdownNode<T, 'heading'>): T;
+
+    /**
+     * Renders a quote, or its text as a paragraph when not given.
+     */
     quote?(node: VisitedMarkdownNode<T, 'quote'>): T;
+
+    /**
+     * Renders an ordered list, or its text as a paragraph when not given.
+     */
     orderedList?(node: VisitedMarkdownNode<T, 'orderedList'>): T;
+
+    /**
+     * Renders an unordered list, or its text as a paragraph when not given.
+     */
     unorderedList?(node: VisitedMarkdownNode<T, 'unorderedList'>): T;
+
+    /**
+     * Renders a list item, or its text as a paragraph when not given.
+     */
     listItem?(node: VisitedMarkdownNode<T, 'listItem'>): T;
+
+    /**
+     * Renders a code block, or its text as a paragraph when not given.
+     */
     codeBlock?(node: VisitedMarkdownNode<T, 'codeBlock'>): T;
+
+    /**
+     * Renders a horizontal rule, or its text as a paragraph when not given.
+     */
     rule?(node: VisitedMarkdownNode<T, 'rule'>): T;
 }
 
-export function render<T>(markdown: string|MarkdownNode, visitor: MarkdownRenderer<T>): T {
-    return visit(typeof markdown === 'string' ? parse(markdown) : markdown, visitor);
+export function render<T>(
+    markdown: string|MarkdownNode,
+    visitor: MarkdownRenderer<T>,
+    options: ParsingOptions = {},
+): T {
+    return visit(typeof markdown === 'string' ? parse(markdown, options) : markdown, visitor);
 }
 
 function visit<T>(root: MarkdownNode, visitor: MarkdownRenderer<T>): T {
