@@ -1,5 +1,5 @@
 import {parse, unescape} from '../src/parsing';
-import {MarkdownNode} from '../src/ast';
+import type {MarkdownNode} from '../src/ast';
 
 describe('A Markdown parser function', () => {
     type ParsingScenario = {

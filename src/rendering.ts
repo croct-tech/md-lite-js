@@ -1,5 +1,6 @@
-import {MarkdownNode, MarkdownNodeType} from './ast';
-import {parse, ParsingOptions} from './parsing';
+import type {MarkdownNode, MarkdownNodeType} from './ast';
+import type {ParsingOptions} from './parsing';
+import {parse} from './parsing';
 
 type VisitedMarkdownNodeMap<C> = {
     text: {
@@ -112,7 +113,7 @@ export interface MarkdownRenderer<T> {
 }
 
 export function render<T>(
-    markdown: string|MarkdownNode,
+    markdown: string | MarkdownNode,
     visitor: MarkdownRenderer<T>,
     options: ParsingOptions = {},
 ): T {

@@ -1,4 +1,4 @@
-import {MarkdownNode} from './ast';
+import type {MarkdownNode} from './ast';
 
 export type ParsingOptions = {
     /**
@@ -92,7 +92,7 @@ class MarkdownParser {
      */
     private static readonly SPECIAL_CHARS = '*_~`![])"\\\r\n';
 
-    private constructor(input: string, map: SourceMap|null) {
+    private constructor(input: string, map: SourceMap | null) {
         this.chars = [...input];
         this.map = map ?? MarkdownParser.createSourceMap(input, this.chars);
         this.ends = MarkdownParser.findEnds(this.chars);
@@ -104,7 +104,7 @@ class MarkdownParser {
      * The nodes have their source in the Markdown the map gives, if any, like a paragraph of
      * a quote, whose source reads with the quote's markers.
      */
-    public static parse(input: string, map: SourceMap|null = null): MarkdownNode {
+    public static parse(input: string, map: SourceMap | null = null): MarkdownNode {
         return new MarkdownParser(input, map).parseNext();
     }
 
@@ -256,7 +256,7 @@ class MarkdownParser {
         return root;
     }
 
-    private parseCurrent(): MarkdownNode|null {
+    private parseCurrent(): MarkdownNode | null {
         const end = this.ends.get(this.index);
 
         if (end === undefined) {
@@ -662,7 +662,7 @@ type ListMarker = {
     /**
      * The number of an ordered item, or null for a bullet.
      */
-    start: number|null,
+    start: number | null,
 
     /**
      * The column the content starts at, which the lines of the item are indented to.
@@ -688,7 +688,7 @@ type Fence = {
  */
 type Block =
     | {
-        type: 'blank'|'text'|'rule',
+        type: 'blank' | 'text' | 'rule',
     }
     | {
         type: 'heading',
@@ -715,7 +715,7 @@ type Block =
  */
 type Flow = {
     readonly paragraph: boolean,
-    readonly fence: Fence|null,
+    readonly fence: Fence | null,
 };
 
 type ListItem = {
@@ -809,7 +809,7 @@ class BlockParser {
      *
      * Without blocks, the text is left to be parsed as paragraphs.
      */
-    private parseBlocks(): MarkdownNode[]|null {
+    private parseBlocks(): MarkdownNode[] | null {
         const nodes: MarkdownNode[] = [];
         const text: Line[] = [];
 
@@ -891,7 +891,7 @@ class BlockParser {
         return paragraphs;
     }
 
-    private parseBlock(block: Block, interrupting: boolean): MarkdownNode|null {
+    private parseBlock(block: Block, interrupting: boolean): MarkdownNode | null {
         const source = this.getSource(this.current);
 
         switch (block.type) {
@@ -930,7 +930,7 @@ class BlockParser {
     /**
      * Parses the paragraph ending the text as a heading, if the current line underlines it.
      */
-    private parseUnderlinedHeading(text: Line[]): MarkdownNode<'heading'>|null {
+    private parseUnderlinedHeading(text: Line[]): MarkdownNode<'heading'> | null {
         const level = BlockParser.readUnderline(this.current.content);
 
         if (level === null) {
@@ -1012,7 +1012,7 @@ class BlockParser {
         };
     }
 
-    private parseList(first: ListMarker, interrupting: boolean): MarkdownNode|null {
+    private parseList(first: ListMarker, interrupting: boolean): MarkdownNode | null {
         // A list only interrupts a paragraph where it can't be read as text, so neither when its
         // item is empty nor when it counts from another number than 1
         if (interrupting && (first.content.content === '' || (first.start ?? 1) !== 1)) {
@@ -1023,7 +1023,7 @@ class BlockParser {
         const items: ListItem[] = [];
 
         for (
-            let sibling: ListSibling|null = {marker: first, separated: false};
+            let sibling: ListSibling | null = {marker: first, separated: false};
             sibling !== null;
             sibling = this.findSibling(first.delimiter)
         ) {
@@ -1135,7 +1135,7 @@ class BlockParser {
      *
      * Blank lines between items keep them in the same list.
      */
-    private findSibling(delimiter: string): ListSibling|null {
+    private findSibling(delimiter: string): ListSibling | null {
         const index = this.findNextContent();
 
         if (index === null) {
@@ -1158,7 +1158,7 @@ class BlockParser {
         };
     }
 
-    private findNextContent(): number|null {
+    private findNextContent(): number | null {
         for (let {index} = this; index < this.lines.length; index++) {
             if (!BlockParser.isBlankLine(this.lines[index])) {
                 return index;
@@ -1284,7 +1284,7 @@ class BlockParser {
         };
     }
 
-    private static readListMarker(line: Line, index: number): ListMarker|null {
+    private static readListMarker(line: Line, index: number): ListMarker | null {
         const {content} = line;
         const char = content[index];
         const digits = BlockParser.skip(content, BlockParser.DIGITS, index);
@@ -1350,7 +1350,7 @@ class BlockParser {
     /**
      * Returns the level of the heading the line underlines, or null when it is not an underline.
      */
-    private static readUnderline(content: string): number|null {
+    private static readUnderline(content: string): number | null {
         const index = BlockParser.skipIndentation(content);
         const char = content[index];
 

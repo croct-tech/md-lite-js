@@ -30,13 +30,13 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
-    "@croct/eslint-plugin": "^0.7.0",
+    "@croct/eslint-plugin": "^0.9.2",
     "@swc/jest": "^0.2.39",
     "@types/jest": "^30.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.22",
-    "jest": "^30.0.0",
-    "typescript": "^5.0.0"
+    "@typescript-eslint/parser": "^8.72.1",
+    "eslint": "^10.14.0",
+    "jest": "^30.5.2",
+    "typescript": "^6.0.3"
   },
   "files": [
     "**/*.js",
