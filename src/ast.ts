@@ -26,6 +26,28 @@ type MarkdownNodeMap = {
     paragraph: {
         children: MarkdownNode[],
     },
+    heading: {
+        level: number,
+        children: MarkdownNode,
+    },
+    quote: {
+        children: MarkdownNode[],
+    },
+    orderedList: {
+        start: number,
+        items: Array<MarkdownNode<'listItem'>>,
+    },
+    unorderedList: {
+        items: Array<MarkdownNode<'listItem'>>,
+    },
+    listItem: {
+        children: MarkdownNode[],
+    },
+    codeBlock: {
+        content: string,
+        language?: string,
+    },
+    rule: Record<never, never>,
     fragment: {
         children: MarkdownNode[],
     },

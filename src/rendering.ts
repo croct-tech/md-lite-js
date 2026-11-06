@@ -1,5 +1,5 @@
 import {MarkdownNode, MarkdownNodeType} from './ast';
-import {parse} from './parsing';
+import {parse, ParsingOptions} from './parsing';
 
 type VisitedMarkdownNodeMap<C> = {
     text: {
@@ -29,6 +29,28 @@ type VisitedMarkdownNodeMap<C> = {
     paragraph: {
         children: C[],
     },
+    heading: {
+        level: number,
+        children: C,
+    },
+    quote: {
+        children: C[],
+    },
+    orderedList: {
+        start: number,
+        items: C[],
+    },
+    unorderedList: {
+        items: C[],
+    },
+    listItem: {
+        children: C[],
+    },
+    codeBlock: {
+        content: string,
+        language?: string,
+    },
+    rule: Record<never, never>,
     fragment: {
         children: C[],
     },
@@ -52,14 +74,67 @@ export interface MarkdownRenderer<T> {
     image(node: VisitedMarkdownNode<T, 'image'>): T;
     paragraph(node: VisitedMarkdownNode<T, 'paragraph'>): T;
     fragment(node: VisitedMarkdownNode<T, 'fragment'>): T;
+
+    /**
+     * Renders a heading, or its text as a paragraph when not given.
+     */
+    heading?(node: VisitedMarkdownNode<T, 'heading'>): T;
+
+    /**
+     * Renders a quote, or its text as a paragraph when not given.
+     */
+    quote?(node: VisitedMarkdownNode<T, 'quote'>): T;
+
+    /**
+     * Renders an ordered list, or its text as a paragraph when not given.
+     */
+    orderedList?(node: VisitedMarkdownNode<T, 'orderedList'>): T;
+
+    /**
+     * Renders an unordered list, or its text as a paragraph when not given.
+     */
+    unorderedList?(node: VisitedMarkdownNode<T, 'unorderedList'>): T;
+
+    /**
+     * Renders a list item, or its text as a paragraph when not given.
+     */
+    listItem?(node: VisitedMarkdownNode<T, 'listItem'>): T;
+
+    /**
+     * Renders a code block, or its text as a paragraph when not given.
+     */
+    codeBlock?(node: VisitedMarkdownNode<T, 'codeBlock'>): T;
+
+    /**
+     * Renders a horizontal rule, or its text as a paragraph when not given.
+     */
+    rule?(node: VisitedMarkdownNode<T, 'rule'>): T;
 }
 
-export function render<T>(markdown: string|MarkdownNode, visitor: MarkdownRenderer<T>): T {
-    return visit(typeof markdown === 'string' ? parse(markdown) : markdown, visitor);
+export function render<T>(
+    markdown: string|MarkdownNode,
+    visitor: MarkdownRenderer<T>,
+    options: ParsingOptions = {},
+): T {
+    return visit(typeof markdown === 'string' ? parse(markdown, options) : markdown, visitor);
 }
 
 function visit<T>(root: MarkdownNode, visitor: MarkdownRenderer<T>): T {
     let index = 0;
+
+    function visitText(node: MarkdownNode): T {
+        const inline = parse(node.source, {blocks: false});
+
+        if (inline.type === 'paragraph' || (inline.type === 'fragment' && inline.children[0]?.type === 'paragraph')) {
+            return visitNode(inline);
+        }
+
+        return visitNode({
+            type: 'paragraph',
+            children: inline.type === 'fragment' ? inline.children : [inline],
+            source: node.source,
+        });
+    }
 
     function visitNode(node: MarkdownNode): T {
         switch (node.type) {
@@ -123,6 +198,88 @@ function visit<T>(root: MarkdownNode, visitor: MarkdownRenderer<T>): T {
                     source: node.source,
                 });
             }
+
+            case 'heading':
+                if (visitor.heading === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.heading({
+                    type: node.type,
+                    level: node.level,
+                    children: visitNode(node.children),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'quote':
+                if (visitor.quote === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.quote({
+                    type: node.type,
+                    children: node.children.map(child => visitNode(child)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'orderedList':
+                if (visitor.orderedList === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.orderedList({
+                    type: node.type,
+                    start: node.start,
+                    items: node.items.map(item => visitNode(item)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'unorderedList':
+                if (visitor.unorderedList === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.unorderedList({
+                    type: node.type,
+                    items: node.items.map(item => visitNode(item)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'listItem':
+                if (visitor.listItem === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.listItem({
+                    type: node.type,
+                    children: node.children.map(child => visitNode(child)),
+                    index: index++,
+                    source: node.source,
+                });
+
+            case 'codeBlock':
+                if (visitor.codeBlock === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.codeBlock({
+                    ...node,
+                    index: index++,
+                });
+
+            case 'rule':
+                if (visitor.rule === undefined) {
+                    return visitText(node);
+                }
+
+                return visitor.rule({
+                    ...node,
+                    index: index++,
+                });
 
             case 'fragment':
                 return visitor.fragment({
